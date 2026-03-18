@@ -1,54 +1,72 @@
-/*
-Raylib example file.
-This is an example main file for a simple raylib project.
-Use this as a starting point or replace it with your code.
+#include <stdbool.h>
+#include <stdio.h>
+#include <string.h>
 
-by Jeffery Myers is marked with CC0 1.0. To view a copy of this license, visit https://creativecommons.org/publicdomain/zero/1.0/
-
-*/
-
+#include "app.h"
 #include "raylib.h"
+#include "raylib_frontend.h"
+#include "tests.h"
 
-#include "resource_dir.h"	// utility header for SearchAndSetResourceDir
+static const int CONFIGURED_ROWS = 4;
+static const int CONFIGURED_COLS = 7;
+static const int CONFIGURED_TILE_SIZE = 88;
 
-int main ()
-{
-	// Tell the window to use vsync and work on high DPI displays
+static const int CONFIGURED_BOARD_RESOLUTION_WIDTH = 128;
+static const int CONFIGURED_BOARD_RESOLUTION_HEIGHT = 64;
+
+static void apply_startup_config(GameConfig *config) {
+	if (!config) {
+		return;
+	}
+
+	config->rows = CONFIGURED_ROWS;
+	config->cols = CONFIGURED_COLS;
+	config->tile_size = CONFIGURED_TILE_SIZE;
+	config->board_resolution_width = CONFIGURED_BOARD_RESOLUTION_WIDTH;
+	config->board_resolution_height = CONFIGURED_BOARD_RESOLUTION_HEIGHT;
+}
+
+static void print_usage(const char *argv0) { printf("Usage: %s [--test]\n", argv0); }
+
+int main(int argc, char **argv) {
+	GameConfig config = pvz_make_default_config();
+	bool run_tests = false;
+	apply_startup_config(&config);
+
+	for (int i = 1; i < argc; ++i) {
+		if (strcmp(argv[i], "--test") == 0) {
+			run_tests = true;
+			continue;
+		}
+		print_usage(argv[0]);
+		return 1;
+	}
+
+	if (run_tests) {
+		return run_all_tests();
+	}
+
+	AppContext app;
+	app_init(&app, &config);
 	SetConfigFlags(FLAG_VSYNC_HINT | FLAG_WINDOW_HIGHDPI);
+	InitWindow(app.display_settings.window_width, app.display_settings.window_height, "pvz-raylib mockup");
+	SetTargetFPS(60);
+	app.render_view = raylib_render_view;
 
-	// Create the window and OpenGL context
-	InitWindow(1280, 800, "Hello Raylib");
+	while (!WindowShouldClose() && !app.quit_requested) {
+		InputFrame input;
+		RenderView view;
+		raylib_poll_input(&app, &input);
+		app_update(&app, &input, GetFrameTime());
+		app_build_view(&app, &view);
 
-	// Utility function from resource_dir.h to find the resources folder and set it as the current working directory so we can load from it
-	SearchAndSetResourceDir("resources");
-
-	// Load a texture from the resources directory
-	Texture wabbit = LoadTexture("wabbit_alpha.png");
-	
-	// game loop
-	while (!WindowShouldClose())		// run the loop until the user presses ESCAPE or presses the Close button on the window
-	{
-		// drawing
 		BeginDrawing();
-
-		// Setup the back buffer for drawing (clear color and depth buffers)
-		ClearBackground(BLACK);
-
-		// draw some text using the default font
-		DrawText("Hello Raylib", 200,200,20,WHITE);
-
-		// draw our texture to the screen
-		DrawTexture(wabbit, 400, 200, WHITE);
-		
-		// end the frame and get ready for the next one  (display frame, poll input, etc...)
+		app_render(&app, &view);
 		EndDrawing();
 	}
 
-	// cleanup
-	// unload our texture so it can be cleaned up
-	UnloadTexture(wabbit);
-
-	// destroy the window and cleanup the OpenGL context
+	app_shutdown(&app);
+	raylib_frontend_shutdown();
 	CloseWindow();
 	return 0;
 }
