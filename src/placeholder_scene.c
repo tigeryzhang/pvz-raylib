@@ -30,7 +30,7 @@ static void placeholder_scene_update(Scene *scene, AppContext *app, const InputF
 
 static void placeholder_scene_build_view(Scene *scene, AppContext *app, RenderView *view) {
 	(void)scene;
-	presentation_build_placeholder_view(view, &app->display_settings);
+	presentation_build_placeholder_view(view, &app->config);
 }
 
 static void placeholder_scene_render(Scene *scene, AppContext *app, const RenderView *view) {

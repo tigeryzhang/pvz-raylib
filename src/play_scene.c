@@ -1,6 +1,5 @@
 #include "app.h"
 
-#include <stdio.h>
 #include <string.h>
 
 static PlantType plant_from_card_index(int index) {
@@ -16,29 +15,29 @@ static PlantType plant_from_card_index(int index) {
 	}
 }
 
-static const char *command_result_text(GameCommandResult result) {
+static RenderStatus command_result_status(GameCommandResult result) {
 	switch (result) {
 	case GAME_COMMAND_RESULT_OK:
-		return "Action applied";
+		return RENDER_STATUS_NONE;
 	case GAME_COMMAND_RESULT_OCCUPIED:
-		return "Tile already occupied";
+		return RENDER_STATUS_OCCUPIED;
 	case GAME_COMMAND_RESULT_OUT_OF_BOUNDS:
-		return "Tile outside board";
+		return RENDER_STATUS_OUT_OF_BOUNDS;
 	case GAME_COMMAND_RESULT_NO_SELECTION:
-		return "Select a plant first";
+		return RENDER_STATUS_NO_SELECTION;
 	case GAME_COMMAND_RESULT_NOT_ENOUGH_SUN:
-		return "Not enough sun";
+		return RENDER_STATUS_NO_SUN;
 	case GAME_COMMAND_RESULT_NOT_FOUND:
-		return "No plant on that tile";
+		return RENDER_STATUS_NOT_FOUND;
 	case GAME_COMMAND_RESULT_IGNORED:
 	default:
-		return "";
+		return RENDER_STATUS_NONE;
 	}
 }
 
-static void play_scene_set_banner(PlaySceneState *state, const char *text, float duration) {
-	snprintf(state->banner, sizeof(state->banner), "%s", text);
-	state->banner_timer = duration;
+static void play_scene_set_status(PlaySceneState *state, RenderStatus status, float duration) {
+	state->status = status;
+	state->status_timer = duration;
 }
 
 static void play_scene_enter(Scene *scene, AppContext *app) {
@@ -57,7 +56,7 @@ static void play_scene_handle_command(Scene *scene, AppContext *app, InputComman
 												 .plant_type = plant_from_card_index(command.index),
 											 });
 		if (result == GAME_COMMAND_RESULT_OK) {
-			play_scene_set_banner(state, pvz_get_plant_name(state->game.selected_plant), 1.2f);
+			play_scene_set_status(state, RENDER_STATUS_NONE, 0.0f);
 		}
 		break;
 	}
@@ -66,8 +65,8 @@ static void play_scene_handle_command(Scene *scene, AppContext *app, InputComman
 																		.type = GAME_COMMAND_PLACE_PLANT,
 																		.coord = command.coord,
 																	});
-		const char *banner = result == GAME_COMMAND_RESULT_OK ? "Plant placed" : command_result_text(result);
-		play_scene_set_banner(state, banner, 1.5f);
+		play_scene_set_status(
+			state, result == GAME_COMMAND_RESULT_OK ? RENDER_STATUS_PLACED : command_result_status(result), 1.2f);
 		break;
 	}
 	case INPUT_COMMAND_REMOVE_TILE: {
@@ -75,17 +74,17 @@ static void play_scene_handle_command(Scene *scene, AppContext *app, InputComman
 																		.type = GAME_COMMAND_REMOVE_PLANT,
 																		.coord = command.coord,
 																	});
-		const char *banner = result == GAME_COMMAND_RESULT_OK ? "Plant removed" : command_result_text(result);
-		play_scene_set_banner(state, banner, 1.5f);
+		play_scene_set_status(
+			state, result == GAME_COMMAND_RESULT_OK ? RENDER_STATUS_REMOVED : command_result_status(result), 1.2f);
 		break;
 	}
 	case INPUT_COMMAND_TOGGLE_PAUSE:
 		game_apply_command(&state->game, (GameCommand){.type = GAME_COMMAND_TOGGLE_PAUSE});
-		play_scene_set_banner(state, state->game.paused ? "Paused" : "Running", 1.0f);
+		play_scene_set_status(state, RENDER_STATUS_NONE, 0.0f);
 		break;
 	case INPUT_COMMAND_RESTART:
 		game_apply_command(&state->game, (GameCommand){.type = GAME_COMMAND_RESTART});
-		play_scene_set_banner(state, "Board reset", 1.0f);
+		play_scene_set_status(state, RENDER_STATUS_RESET, 1.0f);
 		break;
 	case INPUT_COMMAND_GOTO_PLACEHOLDER_SCENE:
 		scene_request(scene, SCENE_ID_PLACEHOLDER);
@@ -104,10 +103,10 @@ static void play_scene_update(Scene *scene, AppContext *app, const InputFrame *i
 		play_scene_handle_command(scene, app, input->commands[i]);
 	}
 
-	if (state->banner_timer > 0.0f) {
-		state->banner_timer -= frame_dt;
-		if (state->banner_timer <= 0.0f) {
-			state->banner[0] = '\0';
+	if (state->status_timer > 0.0f) {
+		state->status_timer -= frame_dt;
+		if (state->status_timer <= 0.0f) {
+			state->status = RENDER_STATUS_NONE;
 		}
 	}
 
@@ -120,9 +119,8 @@ static void play_scene_update(Scene *scene, AppContext *app, const InputFrame *i
 
 static void play_scene_build_view(Scene *scene, AppContext *app, RenderView *view) {
 	PlaySceneState *state = (PlaySceneState *)scene->state;
-	PlaySceneViewModel model = {};
-	snprintf(model.banner, sizeof(model.banner), "%s", state->banner);
-	presentation_build_play_view(view, &state->game, &app->display_settings, &model);
+	(void)app;
+	presentation_build_play_view(view, &state->game, state->status);
 }
 
 static void play_scene_render(Scene *scene, AppContext *app, const RenderView *view) {

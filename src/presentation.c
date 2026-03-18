@@ -1,24 +1,9 @@
 #include "presentation.h"
 
 #include <math.h>
-#include <stdarg.h>
-#include <stdio.h>
 #include <string.h>
 
-static bool append_labelf(RenderView *view, int x, int y, int size, RenderPalette palette, const char *format, ...) {
-	char buffer[64];
-	va_list args;
-	va_start(args, format);
-	const int written = vsnprintf(buffer, sizeof(buffer), format, args);
-	va_end(args);
-	if (written < 0) {
-		return false;
-	}
-	return render_view_push_label(view, buffer, x, y, size, palette);
-}
-
-static IntRect board_cell_rect(const DisplaySettings *metrics, const GameState *game, int row, int col, int padding) {
-	(void)metrics;
+static IntRect board_cell_rect(const GameState *game, int row, int col, int padding) {
 	const int x0 = col * game->config->board_resolution_width / game->config->cols;
 	const int x1 = (col + 1) * game->config->board_resolution_width / game->config->cols;
 	const int y0 = row * game->config->board_resolution_height / game->config->rows;
@@ -42,9 +27,7 @@ static IntRect board_cell_rect(const DisplaySettings *metrics, const GameState *
 	return rect;
 }
 
-static IntRect board_entity_rect(const DisplaySettings *metrics, const GameState *game, float row_center,
-								 float col_center, int size) {
-	(void)metrics;
+static IntRect board_entity_rect(const GameState *game, float row_center, float col_center, int size) {
 	const int center_x =
 		(int)lroundf(col_center * (float)game->config->board_resolution_width / (float)game->config->cols);
 	const int center_y =
@@ -56,10 +39,6 @@ static IntRect board_entity_rect(const DisplaySettings *metrics, const GameState
 		.h = size,
 	};
 	return rect;
-}
-
-static IntRect board_bounds_rect(const GameConfig *config) {
-	return (IntRect){0, 0, config->board_resolution_width, config->board_resolution_height};
 }
 
 static int board_unit_size(const GameConfig *config) {
@@ -75,127 +54,206 @@ void render_view_reset(RenderView *view) {
 	memset(view, 0, sizeof(*view));
 }
 
-bool render_view_push_item(RenderView *view, RenderItem item) {
-	if (!view || view->item_count >= PVZ_MAX_RENDER_ITEMS) {
-		return false;
+static void render_view_begin(RenderView *view, int width, int height, RenderPalette palette) {
+	if (!view) {
+		return;
 	}
-	view->items[view->item_count++] = item;
-	return true;
-}
-
-bool render_view_push_label(RenderView *view, const char *text, int x, int y, int size, RenderPalette palette) {
-	if (!view || view->label_count >= PVZ_MAX_RENDER_LABELS) {
-		return false;
-	}
-
-	RenderLabel *label = &view->labels[view->label_count++];
-	snprintf(label->text, sizeof(label->text), "%s", text);
-	label->x = x;
-	label->y = y;
-	label->size = size;
-	label->palette = palette;
-	return true;
-}
-
-static RenderItemType plant_glyph(PlantType plant_type) {
-	switch (plant_type) {
-	case PLANT_SUNFLOWER:
-		return RENDER_ITEM_SUNFLOWER;
-	case PLANT_PEASHOOTER:
-		return RENDER_ITEM_PEASHOOTER;
-	case PLANT_WALLNUT:
-		return RENDER_ITEM_WALLNUT;
-	case PLANT_NONE:
-	default:
-		return RENDER_ITEM_CARD;
-	}
-}
-
-static RenderItemType zombie_glyph(ZombieType zombie_type) {
-	switch (zombie_type) {
-	case ZOMBIE_CONE:
-		return RENDER_ITEM_ZOMBIE_CONE;
-	case ZOMBIE_BUCKETHEAD:
-		return RENDER_ITEM_ZOMBIE_BUCKET;
-	case ZOMBIE_REGULAR:
-	default:
-		return RENDER_ITEM_ZOMBIE_REGULAR;
-	}
-}
-
-void presentation_build_play_view(RenderView *view, const GameState *game, const DisplaySettings *metrics,
-								  const PlaySceneViewModel *model) {
 	render_view_reset(view);
-	const int board_unit = board_unit_size(game->config);
-	const int plant_padding = board_unit / 8 > 0 ? board_unit / 8 : 1;
-	const int zombie_size = board_unit - board_unit / 5;
-	const int projectile_size = board_unit / 5 > 0 ? board_unit / 5 : 1;
-	const int sun_size = board_unit / 3 > 0 ? board_unit / 3 : 1;
+	if (width < 1) {
+		width = 1;
+	}
+	if (height < 1) {
+		height = 1;
+	}
+	if (width > PVZ_MAX_BOARD_WIDTH) {
+		width = PVZ_MAX_BOARD_WIDTH;
+	}
+	if (height > PVZ_MAX_BOARD_HEIGHT) {
+		height = PVZ_MAX_BOARD_HEIGHT;
+	}
+	view->board_width = width;
+	view->board_height = height;
+	memset(view->pixels, (unsigned char)palette, (size_t)width * (size_t)height);
+}
 
-	render_view_push_item(view, (RenderItem){
-									.type = RENDER_ITEM_BACKGROUND,
-									.palette = RENDER_PALETTE_BG,
-									.rect = {0, 0, metrics->window_width, metrics->window_height},
-								});
-	render_view_push_item(view, (RenderItem){
-									.type = RENDER_ITEM_PANEL,
-									.palette = RENDER_PALETTE_PANEL,
-									.rect = metrics->hud_rect,
-								});
-	render_view_push_item(view, (RenderItem){
-									.type = RENDER_ITEM_PANEL,
-									.palette = RENDER_PALETTE_PANEL,
-									.rect = metrics->footer_rect,
-								});
+static bool render_view_contains(const RenderView *view, int x, int y) {
+	return view && x >= 0 && y >= 0 && x < view->board_width && y < view->board_height;
+}
 
-	for (int index = 0; index < 3; ++index) {
-		const PlantType plant_type = (PlantType)(index + 1);
-		const IntRect rect = pvz_get_card_rect(metrics, index);
-		const bool selected = game->selected_plant == plant_type;
-		render_view_push_item(view, (RenderItem){
-										.type = RENDER_ITEM_CARD,
-										.palette = selected ? RENDER_PALETTE_HIGHLIGHT : RENDER_PALETTE_TILE_DARK,
-										.rect = rect,
-										.emphasized = selected,
-									});
-		render_view_push_item(
-			view, (RenderItem){
-					  .type = plant_glyph(plant_type),
-					  .palette = (plant_type == PLANT_WALLNUT) ? RENDER_PALETTE_WALLNUT : RENDER_PALETTE_PLANT,
-					  .rect = {rect.x + 10, rect.y + 10, 56, 56},
-				  });
-		append_labelf(view, rect.x + 72, rect.y + 14, 18, RENDER_PALETTE_TEXT, "%d %s", index + 1,
-					  pvz_get_plant_name(plant_type));
-		append_labelf(view, rect.x + 72, rect.y + 42, 18, RENDER_PALETTE_SUN, "Cost %d",
-					  game_get_plant_cost(game, plant_type));
+static void render_view_set_pixel(RenderView *view, int x, int y, RenderPalette palette) {
+	if (!render_view_contains(view, x, y)) {
+		return;
+	}
+	view->pixels[y * view->board_width + x] = (uint8_t)palette;
+}
+
+static void render_view_fill_rect(RenderView *view, IntRect rect, RenderPalette palette) {
+	if (!view || rect.w <= 0 || rect.h <= 0) {
+		return;
 	}
 
-	for (int row = 0; row < game->config->rows; ++row) {
-		for (int col = 0; col < game->config->cols; ++col) {
-			render_view_push_item(
-				view, (RenderItem){
-						  .type = RENDER_ITEM_TILE,
-						  .palette = ((row + col) % 2 == 0) ? RENDER_PALETTE_TILE_LIGHT : RENDER_PALETTE_TILE_DARK,
-						  .rect = board_cell_rect(metrics, game, row, col, 1),
-						  .board_space = true,
-					  });
+	int x0 = rect.x;
+	int y0 = rect.y;
+	int x1 = rect.x + rect.w;
+	int y1 = rect.y + rect.h;
+
+	if (x0 < 0) {
+		x0 = 0;
+	}
+	if (y0 < 0) {
+		y0 = 0;
+	}
+	if (x1 > view->board_width) {
+		x1 = view->board_width;
+	}
+	if (y1 > view->board_height) {
+		y1 = view->board_height;
+	}
+
+	for (int y = y0; y < y1; ++y) {
+		for (int x = x0; x < x1; ++x) {
+			view->pixels[y * view->board_width + x] = (uint8_t)palette;
 		}
 	}
+}
 
+static void draw_tile_checkerboard(RenderView *view, const GameState *game) {
+	for (int row = 0; row < game->config->rows; ++row) {
+		for (int col = 0; col < game->config->cols; ++col) {
+			const IntRect rect = board_cell_rect(game, row, col, 1);
+			const RenderPalette palette = ((row + col) % 2 == 0) ? RENDER_PALETTE_TILE_LIGHT : RENDER_PALETTE_TILE_DARK;
+			render_view_fill_rect(view, rect, palette);
+		}
+	}
+}
+
+static void draw_sunflower(RenderView *view, IntRect rect) {
+	const int stem_w = rect.w / 6 > 0 ? rect.w / 6 : 1;
+	const int center = rect.x + rect.w / 2;
+	const int petal = rect.w / 5 > 0 ? rect.w / 5 : 1;
+	render_view_fill_rect(view, (IntRect){center - stem_w / 2, rect.y + rect.h / 2, stem_w, rect.h / 3},
+						  RENDER_PALETTE_PLANT);
+	render_view_fill_rect(view, (IntRect){center - petal / 2, rect.y + rect.h / 2 - petal / 2, petal, petal},
+						  RENDER_PALETTE_WALLNUT);
+	render_view_fill_rect(view, (IntRect){center - petal / 2, rect.y + rect.h / 4 - petal / 2, petal, petal},
+						  RENDER_PALETTE_SUN);
+	render_view_fill_rect(view, (IntRect){center - petal / 2, rect.y + rect.h * 3 / 4 - petal / 2, petal, petal},
+						  RENDER_PALETTE_SUN);
+	render_view_fill_rect(view,
+						  (IntRect){rect.x + rect.w / 4 - petal / 2, rect.y + rect.h / 2 - petal / 2, petal, petal},
+						  RENDER_PALETTE_SUN);
+	render_view_fill_rect(view,
+						  (IntRect){rect.x + rect.w * 3 / 4 - petal / 2, rect.y + rect.h / 2 - petal / 2, petal, petal},
+						  RENDER_PALETTE_SUN);
+}
+
+static void draw_peashooter(RenderView *view, IntRect rect) {
+	const int body = rect.w / 4 > 0 ? rect.w / 4 : 1;
+	const int center = rect.x + rect.w / 2;
+	render_view_fill_rect(view, (IntRect){center - body / 2, rect.y + rect.h / 3, body, rect.h / 3},
+						  RENDER_PALETTE_PLANT);
+	render_view_fill_rect(view, (IntRect){center, rect.y + rect.h / 4, rect.w / 3, rect.h / 4}, RENDER_PALETTE_PLANT);
+	render_view_fill_rect(view,
+						  (IntRect){center + rect.w / 4, rect.y + rect.h / 3, rect.w / 10 > 0 ? rect.w / 10 : 1,
+									rect.h / 10 > 0 ? rect.h / 10 : 1},
+						  RENDER_PALETTE_BG);
+	render_view_fill_rect(view,
+						  (IntRect){center - rect.w / 4, rect.y + rect.h * 3 / 4, rect.w / 6 > 0 ? rect.w / 6 : 1,
+									rect.h / 8 > 0 ? rect.h / 8 : 1},
+						  RENDER_PALETTE_PLANT);
+	render_view_fill_rect(
+		view,
+		(IntRect){center, rect.y + rect.h * 3 / 4, rect.w / 6 > 0 ? rect.w / 6 : 1, rect.h / 8 > 0 ? rect.h / 8 : 1},
+		RENDER_PALETTE_PLANT);
+}
+
+static void draw_wallnut(RenderView *view, IntRect rect) {
+	render_view_fill_rect(view, rect, RENDER_PALETTE_WALLNUT);
+	render_view_fill_rect(view,
+						  (IntRect){rect.x + rect.w / 4, rect.y + rect.h / 3, rect.w / 10 > 0 ? rect.w / 10 : 1,
+									rect.h / 10 > 0 ? rect.h / 10 : 1},
+						  RENDER_PALETTE_TEXT);
+	render_view_fill_rect(view,
+						  (IntRect){rect.x + rect.w * 3 / 5, rect.y + rect.h / 3, rect.w / 10 > 0 ? rect.w / 10 : 1,
+									rect.h / 10 > 0 ? rect.h / 10 : 1},
+						  RENDER_PALETTE_TEXT);
+}
+
+static void draw_plant(RenderView *view, PlantType type, IntRect rect) {
+	switch (type) {
+	case PLANT_SUNFLOWER:
+		draw_sunflower(view, rect);
+		break;
+	case PLANT_PEASHOOTER:
+		draw_peashooter(view, rect);
+		break;
+	case PLANT_WALLNUT:
+		draw_wallnut(view, rect);
+		break;
+	case PLANT_NONE:
+	default:
+		break;
+	}
+}
+
+static void draw_zombie(RenderView *view, ZombieType type, IntRect rect) {
+	const int head = rect.h / 4 > 0 ? rect.h / 4 : 1;
+	const int body_w = rect.w / 3 > 0 ? rect.w / 3 : 1;
+	const int body_x = rect.x + rect.w / 2 - body_w / 2;
+
+	render_view_fill_rect(view, (IntRect){body_x, rect.y + head, body_w, rect.h / 3}, RENDER_PALETTE_ZOMBIE);
+	render_view_fill_rect(view, (IntRect){body_x - body_w / 2, rect.y + head + rect.h / 12, body_w / 2, rect.h / 4},
+						  RENDER_PALETTE_ZOMBIE);
+	render_view_fill_rect(view, (IntRect){body_x + body_w, rect.y + head + rect.h / 12, body_w / 2, rect.h / 4},
+						  RENDER_PALETTE_ZOMBIE);
+	render_view_fill_rect(view, (IntRect){body_x, rect.y + head + rect.h / 3, body_w / 3, rect.h / 3},
+						  RENDER_PALETTE_ZOMBIE);
+	render_view_fill_rect(view, (IntRect){body_x + body_w * 2 / 3, rect.y + head + rect.h / 3, body_w / 3, rect.h / 3},
+						  RENDER_PALETTE_ZOMBIE);
+	render_view_fill_rect(view, (IntRect){body_x, rect.y + rect.h / 12, body_w, head}, RENDER_PALETTE_TEXT);
+
+	if (type == ZOMBIE_CONE) {
+		render_view_fill_rect(view, (IntRect){body_x - body_w / 4, rect.y, body_w + body_w / 2, head},
+							  RENDER_PALETTE_CONE);
+	} else if (type == ZOMBIE_BUCKETHEAD) {
+		render_view_fill_rect(view, (IntRect){body_x - body_w / 5, rect.y, body_w + body_w / 3, head},
+							  RENDER_PALETTE_BUCKET);
+	}
+}
+
+static void draw_projectile(RenderView *view, IntRect rect) {
+	render_view_fill_rect(view, rect, RENDER_PALETTE_PROJECTILE);
+}
+
+static void draw_sun(RenderView *view, IntRect rect) {
+	render_view_fill_rect(view, rect, RENDER_PALETTE_SUN);
+	render_view_fill_rect(view, (IntRect){rect.x + rect.w / 4, rect.y + rect.h / 4, rect.w / 2, rect.h / 2},
+						  RENDER_PALETTE_HIGHLIGHT);
+}
+
+void presentation_build_play_view(RenderView *view, const GameState *game, RenderStatus status) {
+	const int unit_size = board_unit_size(game->config);
+	const int plant_padding = unit_size / 8 > 0 ? unit_size / 8 : 1;
+	const int zombie_size = unit_size - unit_size / 5;
+	const int projectile_size = unit_size / 5 > 0 ? unit_size / 5 : 1;
+	const int sun_size = unit_size / 3 > 0 ? unit_size / 3 : 1;
+
+	render_view_begin(view, game->config->board_resolution_width, game->config->board_resolution_height,
+					  RENDER_PALETTE_BG);
+	view->selected_plant = game->selected_plant;
+	view->sun_count = game->sun_count;
+	view->paused = game->paused;
+	view->game_status = game->status;
+	view->status = status;
+
+	draw_tile_checkerboard(view, game);
+	
 	for (int i = 0; i < PVZ_MAX_PLANTS; ++i) {
 		if (!game->plants[i].active) {
 			continue;
 		}
 		const Plant *plant = &game->plants[i];
-		render_view_push_item(
-			view,
-			(RenderItem){
-				.type = plant_glyph(plant->type),
-				.palette = (plant->type == PLANT_WALLNUT) ? RENDER_PALETTE_WALLNUT : RENDER_PALETTE_PLANT,
-				.rect = board_cell_rect(metrics, game, plant->coord.row, plant->coord.col, plant_padding),
-				.value = plant->health,
-				.board_space = true,
-			});
+		draw_plant(view, plant->type, board_cell_rect(game, plant->coord.row, plant->coord.col, plant_padding));
 	}
 
 	for (int i = 0; i < PVZ_MAX_ZOMBIES; ++i) {
@@ -203,101 +261,45 @@ void presentation_build_play_view(RenderView *view, const GameState *game, const
 			continue;
 		}
 		const Zombie *zombie = &game->zombies[i];
-		render_view_push_item(view, (RenderItem){
-										.type = zombie_glyph(zombie->type),
-										.palette = (zombie->type == ZOMBIE_CONE)
-													   ? RENDER_PALETTE_CONE
-													   : (zombie->type == ZOMBIE_BUCKETHEAD ? RENDER_PALETTE_BUCKET
-																							: RENDER_PALETTE_ZOMBIE),
-										.rect = board_entity_rect(metrics, game, (float)zombie->lane + 0.5f,
-																  zombie->x + 0.5f, zombie_size),
-										.value = zombie->health + zombie->armor,
-										.board_space = true,
-									});
+		draw_zombie(view, zombie->type,
+					board_entity_rect(game, (float)zombie->lane + 0.5f, zombie->x + 0.5f, zombie_size));
 	}
 
 	for (int i = 0; i < PVZ_MAX_PROJECTILES; ++i) {
 		if (!game->projectiles[i].active) {
 			continue;
 		}
-		render_view_push_item(view,
-							  (RenderItem){
-								  .type = RENDER_ITEM_PROJECTILE,
-								  .palette = RENDER_PALETTE_PROJECTILE,
-								  .rect = board_entity_rect(metrics, game, (float)game->projectiles[i].lane + 0.5f,
-															game->projectiles[i].x + 0.1f, projectile_size),
-								  .board_space = true,
-							  });
+		draw_projectile(view, board_entity_rect(game, (float)game->projectiles[i].lane + 0.5f,
+												game->projectiles[i].x + 0.1f, projectile_size));
 	}
 
 	for (int i = 0; i < PVZ_MAX_SUNS; ++i) {
 		if (!game->suns[i].active) {
 			continue;
 		}
-		render_view_push_item(view, (RenderItem){
-										.type = RENDER_ITEM_SUN,
-										.palette = RENDER_PALETTE_SUN,
-										.rect = board_entity_rect(metrics, game, game->suns[i].y, game->suns[i].x,
-																  sun_size),
-										.board_space = true,
-									});
-	}
-
-	append_labelf(view, metrics->hud_rect.x + 16, metrics->hud_rect.y + metrics->hud_rect.h - 28, 20,
-				  RENDER_PALETTE_TEXT, "Sun %d", game->sun_count);
-	append_labelf(view, metrics->footer_rect.x + 14, metrics->footer_rect.y + 12, 18, RENDER_PALETTE_TEXT,
-				  "Selected %s | Space pause | R restart", pvz_get_plant_name(game->selected_plant));
-	append_labelf(view, metrics->footer_rect.x + 14, metrics->footer_rect.y + 40, 18, RENDER_PALETTE_TEXT,
-				  "F2 placeholder scene | Left click place | Right click remove");
-
-	if (model->banner[0] != '\0') {
-		render_view_push_label(view, model->banner, metrics->footer_rect.x + metrics->footer_rect.w - 340,
-							   metrics->footer_rect.y + 12, 18, RENDER_PALETTE_WARNING);
-	}
-
-	if (game->paused) {
-		render_view_push_item(view, (RenderItem){
-										.type = RENDER_ITEM_OVERLAY,
-										.palette = RENDER_PALETTE_PANEL,
-										.rect = board_bounds_rect(game->config),
-										.board_space = true,
-									});
-		render_view_push_label(view, "Paused", metrics->board_rect.x + metrics->board_rect.w / 2 - 48,
-							   metrics->board_rect.y + metrics->board_rect.h / 2 - 14, 28, RENDER_PALETTE_TEXT);
-	}
-
-	if (game->status == GAME_STATUS_WON || game->status == GAME_STATUS_LOST) {
-		const RenderPalette palette = game->status == GAME_STATUS_WON ? RENDER_PALETTE_SUCCESS : RENDER_PALETTE_WARNING;
-		render_view_push_item(view, (RenderItem){
-										.type = RENDER_ITEM_OVERLAY,
-										.palette = palette,
-										.rect = board_bounds_rect(game->config),
-										.board_space = true,
-									});
-		render_view_push_label(view, game->status == GAME_STATUS_WON ? "Wave Cleared" : "House Breached",
-							   metrics->board_rect.x + metrics->board_rect.w / 2 - 110,
-							   metrics->board_rect.y + metrics->board_rect.h / 2 - 14, 30, RENDER_PALETTE_TEXT);
+		draw_sun(view, board_entity_rect(game, game->suns[i].y, game->suns[i].x, sun_size));
 	}
 }
 
-void presentation_build_placeholder_view(RenderView *view, const DisplaySettings *metrics) {
-	render_view_reset(view);
+void presentation_build_placeholder_view(RenderView *view, const GameConfig *config) {
+	render_view_begin(view, config->board_resolution_width, config->board_resolution_height, RENDER_PALETTE_BG);
+	view->status = RENDER_STATUS_PLACEHOLDER;
 
-	render_view_push_item(view, (RenderItem){
-									.type = RENDER_ITEM_BACKGROUND,
-									.palette = RENDER_PALETTE_BG,
-									.rect = {0, 0, metrics->window_width, metrics->window_height},
-								});
-	render_view_push_item(
-		view, (RenderItem){
-				  .type = RENDER_ITEM_PANEL,
-				  .palette = RENDER_PALETTE_PANEL,
-				  .rect = {metrics->hud_rect.x, metrics->hud_rect.y + 40, metrics->hud_rect.w, metrics->board_rect.h},
-			  });
-	render_view_push_label(view, "Placeholder Scene", metrics->hud_rect.x + 32, metrics->hud_rect.y + 72, 36,
-						   RENDER_PALETTE_TEXT);
-	render_view_push_label(view, "This is where a title or plant-selection scene can plug in later.",
-						   metrics->hud_rect.x + 32, metrics->hud_rect.y + 128, 22, RENDER_PALETTE_TEXT);
-	render_view_push_label(view, "Press F1 to return to the playable board.", metrics->hud_rect.x + 32,
-						   metrics->hud_rect.y + 170, 22, RENDER_PALETTE_HIGHLIGHT);
+	for (int y = 0; y < view->board_height; ++y) {
+		for (int x = 0; x < view->board_width; ++x) {
+			if (((x / 8) + (y / 8)) % 2 == 0) {
+				render_view_set_pixel(view, x, y, RENDER_PALETTE_TILE_DARK);
+			} else {
+				render_view_set_pixel(view, x, y, RENDER_PALETTE_TILE_LIGHT);
+			}
+		}
+	}
+
+	render_view_fill_rect(
+		view, (IntRect){view->board_width / 4, view->board_height / 4, view->board_width / 2, view->board_height / 2},
+		RENDER_PALETTE_PANEL);
+	render_view_fill_rect(view,
+						  (IntRect){view->board_width / 4 + 4, view->board_height / 4 + 4, view->board_width / 2 - 8,
+									view->board_height / 2 - 8},
+						  RENDER_PALETTE_BG);
 }

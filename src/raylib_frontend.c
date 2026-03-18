@@ -1,5 +1,8 @@
 #include "raylib_frontend.h"
 
+#include <stdio.h>
+
+#include "presentation.h"
 #include "raylib.h"
 
 typedef struct {
@@ -10,6 +13,19 @@ typedef struct {
 } FrontendState;
 
 static FrontendState frontend_state = {0};
+
+static const uint8_t digit_glyphs[10][5] = {
+	{7, 5, 5, 5, 7}, {2, 6, 2, 2, 7}, {7, 1, 7, 4, 7}, {7, 1, 7, 1, 7}, {5, 5, 7, 1, 1},
+	{7, 4, 7, 1, 7}, {7, 4, 7, 5, 7}, {7, 1, 1, 1, 1}, {7, 5, 7, 5, 7}, {7, 5, 7, 1, 7},
+};
+
+static const uint8_t letter_glyphs[26][5] = {
+	{2, 5, 7, 5, 5}, {6, 5, 6, 5, 6}, {3, 4, 4, 4, 3}, {6, 5, 5, 5, 6}, {7, 4, 6, 4, 7}, {7, 4, 6, 4, 4},
+	{3, 4, 5, 5, 3}, {5, 5, 7, 5, 5}, {7, 2, 2, 2, 7}, {1, 1, 1, 5, 2}, {5, 5, 6, 5, 5}, {4, 4, 4, 4, 7},
+	{5, 7, 7, 5, 5}, {5, 7, 7, 7, 5}, {2, 5, 5, 5, 2}, {6, 5, 6, 4, 4}, {2, 5, 5, 7, 3}, {6, 5, 6, 5, 5},
+	{3, 4, 2, 1, 6}, {7, 2, 2, 2, 2}, {5, 5, 5, 5, 7}, {5, 5, 5, 5, 2}, {5, 5, 7, 7, 5}, {5, 5, 2, 5, 5},
+	{5, 5, 2, 2, 2}, {7, 1, 2, 4, 7},
+};
 
 static Color palette_color(RenderPalette palette) {
 	switch (palette) {
@@ -40,9 +56,9 @@ static Color palette_color(RenderPalette palette) {
 	case RENDER_PALETTE_PROJECTILE:
 		return (Color){80, 206, 68, 255};
 	case RENDER_PALETTE_WARNING:
-		return (Color){203, 72, 56, 185};
+		return (Color){203, 72, 56, 255};
 	case RENDER_PALETTE_SUCCESS:
-		return (Color){65, 170, 95, 185};
+		return (Color){65, 170, 95, 255};
 	default:
 		return WHITE;
 	}
@@ -71,123 +87,58 @@ static void ensure_board_target(const AppContext *app) {
 	frontend_state.loaded = true;
 }
 
-static void draw_rect(IntRect rect, Color color) { DrawRectangle(rect.x, rect.y, rect.w, rect.h, color); }
+static const uint8_t *glyph_rows_for_char(char c) {
+	static const uint8_t space_glyph[5] = {0, 0, 0, 0, 0};
+	static const uint8_t dash_glyph[5] = {0, 0, 7, 0, 0};
+	static const uint8_t colon_glyph[5] = {0, 2, 0, 2, 0};
 
-static void draw_card(IntRect rect, Color color, bool emphasized) {
-	draw_rect(rect, color);
-	const IntRect inner = {rect.x + 4, rect.y + 4, rect.w - 8, rect.h - 8};
-	DrawRectangleLinesEx((Rectangle){(float)inner.x, (float)inner.y, (float)inner.w, (float)inner.h},
-						 emphasized ? 4.0f : 2.0f, emphasized ? palette_color(RENDER_PALETTE_TEXT) : Fade(BLACK, 0.2f));
+	if (c >= 'a' && c <= 'z') {
+		c = (char)(c - 'a' + 'A');
+	}
+	if (c >= '0' && c <= '9') {
+		return digit_glyphs[c - '0'];
+	}
+	if (c >= 'A' && c <= 'Z') {
+		return letter_glyphs[c - 'A'];
+	}
+	if (c == '-') {
+		return dash_glyph;
+	}
+	if (c == ':') {
+		return colon_glyph;
+	}
+	return space_glyph;
 }
 
-static void draw_sunflower(IntRect rect) {
-	const int cx = rect.x + rect.w / 2;
-	const int cy = rect.y + rect.h / 2;
-	const int petal = rect.w / 5;
-	for (int dx = -1; dx <= 1; ++dx) {
-		for (int dy = -1; dy <= 1; ++dy) {
-			if (dx == 0 && dy == 0) {
+static void draw_char_3x5(char c, int x, int y, int scale, Color color) {
+	const uint8_t *rows = glyph_rows_for_char(c);
+	for (int row = 0; row < 5; ++row) {
+		for (int col = 0; col < 3; ++col) {
+			const int bit = 1 << (2 - col);
+			if ((rows[row] & bit) == 0) {
 				continue;
 			}
-			DrawCircle(cx + dx * petal, cy + dy * petal, (float)petal * 0.55f, palette_color(RENDER_PALETTE_SUN));
+			DrawRectangle(x + col * scale, y + row * scale, scale, scale, color);
 		}
 	}
-	DrawCircle(cx, cy, (float)rect.w * 0.18f, (Color){88, 52, 21, 255});
-	DrawRectangle(cx - rect.w / 12, cy, rect.w / 6, rect.h / 3, palette_color(RENDER_PALETTE_PLANT));
 }
 
-static void draw_peashooter(IntRect rect) {
-	const Color stem = palette_color(RENDER_PALETTE_PLANT);
-	DrawCircle(rect.x + rect.w / 2, rect.y + rect.h / 3, rect.w * 0.18f, stem);
-	DrawCircle(rect.x + rect.w / 2 + rect.w / 5, rect.y + rect.h / 3, rect.w * 0.13f, stem);
-	DrawCircle(rect.x + rect.w / 2 + rect.w / 3, rect.y + rect.h / 3, rect.w * 0.09f, palette_color(RENDER_PALETTE_BG));
-	DrawRectangle(rect.x + rect.w / 2 - rect.w / 18, rect.y + rect.h / 3, rect.w / 9, rect.h / 3, stem);
-	DrawCircle(rect.x + rect.w / 3, rect.y + rect.h * 3 / 4, rect.w * 0.12f, stem);
-	DrawCircle(rect.x + rect.w * 2 / 3, rect.y + rect.h * 3 / 4, rect.w * 0.12f, stem);
-}
-
-static void draw_wallnut(IntRect rect) {
-	const Color shell = palette_color(RENDER_PALETTE_WALLNUT);
-	DrawEllipse(rect.x + rect.w / 2, rect.y + rect.h / 2, rect.w / 2.3f, rect.h / 2.2f, shell);
-	DrawCircle(rect.x + rect.w / 2 - rect.w / 3, rect.y + rect.h / 2 - rect.h / 10, 1.5f, BLACK);
-	DrawCircle(rect.x + rect.w / 2 + rect.w / 3, rect.y + rect.h / 2 - rect.h / 10, 1.5f, BLACK);
-	DrawLine(rect.x + rect.w / 2 - rect.w / 7, rect.y + rect.h / 2 + rect.h / 9, rect.x + rect.w / 2 + rect.w / 7,
-			 rect.y + rect.h / 2 + rect.h / 8, BLACK);
-}
-
-static void draw_regular_zombie(IntRect rect, RenderPalette palette) {
-	const Color body = palette_color(palette);
-	DrawCircle(rect.x + rect.w / 2, rect.y + rect.h / 4, rect.w * 0.18f, (Color){194, 203, 179, 255});
-	DrawRectangle(rect.x + rect.w / 2 - rect.w / 10, rect.y + rect.h / 3, rect.w / 5, rect.h / 3, body);
-	DrawRectangle(rect.x + rect.w / 2 - rect.w / 6, rect.y + rect.h * 2 / 3, rect.w / 8, rect.h / 4, body);
-	DrawRectangle(rect.x + rect.w / 2 + rect.w / 18, rect.y + rect.h * 2 / 3, rect.w / 8, rect.h / 4, body);
-	DrawRectangle(rect.x + rect.w / 2 - rect.w / 4, rect.y + rect.h / 3, rect.w / 8, rect.h / 4, body);
-	DrawRectangle(rect.x + rect.w / 2 + rect.w / 8, rect.y + rect.h / 3, rect.w / 8, rect.h / 4, body);
-}
-
-static void draw_cone(IntRect rect) {
-	draw_regular_zombie(rect, RENDER_PALETTE_ZOMBIE);
-	Vector2 top = {(float)(rect.x + rect.w / 2), (float)(rect.y + 4)};
-	Vector2 left = {(float)(rect.x + rect.w / 2 - rect.w / 6), (float)(rect.y + rect.h / 5)};
-	Vector2 right = {(float)(rect.x + rect.w / 2 + rect.w / 6), (float)(rect.y + rect.h / 5)};
-	DrawTriangle(top, left, right, palette_color(RENDER_PALETTE_CONE));
-}
-
-static void draw_bucket(IntRect rect) {
-	draw_regular_zombie(rect, RENDER_PALETTE_ZOMBIE);
-	draw_rect((IntRect){rect.x + rect.w / 2 - rect.w / 6, rect.y + 2, rect.w / 3, rect.h / 6},
-			  palette_color(RENDER_PALETTE_BUCKET));
-}
-
-static void draw_circle(IntRect rect, Color color) {
-	DrawCircle(rect.x + rect.w / 2, rect.y + rect.h / 2, rect.w / 2.0f, color);
-}
-
-static void draw_overlay(IntRect rect, RenderPalette palette) {
-	Color color = palette_color(palette);
-	color.a = 140;
-	draw_rect(rect, color);
-}
-
-static void draw_item(const RenderItem *item) {
-	switch (item->type) {
-	case RENDER_ITEM_BACKGROUND:
-	case RENDER_ITEM_PANEL:
-	case RENDER_ITEM_TILE:
-		draw_rect(item->rect, palette_color(item->palette));
-		break;
-	case RENDER_ITEM_CARD:
-		draw_card(item->rect, palette_color(item->palette), item->emphasized);
-		break;
-	case RENDER_ITEM_SUNFLOWER:
-		draw_sunflower(item->rect);
-		break;
-	case RENDER_ITEM_PEASHOOTER:
-		draw_peashooter(item->rect);
-		break;
-	case RENDER_ITEM_WALLNUT:
-		draw_wallnut(item->rect);
-		break;
-	case RENDER_ITEM_ZOMBIE_REGULAR:
-		draw_regular_zombie(item->rect, item->palette);
-		break;
-	case RENDER_ITEM_ZOMBIE_CONE:
-		draw_cone(item->rect);
-		break;
-	case RENDER_ITEM_ZOMBIE_BUCKET:
-		draw_bucket(item->rect);
-		break;
-	case RENDER_ITEM_PROJECTILE:
-	case RENDER_ITEM_SUN:
-		draw_circle(item->rect, palette_color(item->palette));
-		break;
-	case RENDER_ITEM_OVERLAY:
-		draw_overlay(item->rect, item->palette);
-		break;
-	case RENDER_ITEM_HIGHLIGHT:
-	default:
-		break;
+static void draw_text_3x5(const char *text, int x, int y, int scale, Color color) {
+	if (!text || scale <= 0) {
+		return;
 	}
+
+	for (int i = 0; text[i] != '\0'; ++i) {
+		draw_char_3x5(text[i], x + i * scale * 4, y, scale, color);
+	}
+}
+
+static int text_width_3x5(const char *text, int scale) {
+	int count = 0;
+	while (text && text[count] != '\0') {
+		++count;
+	}
+	return count > 0 ? count * scale * 4 - scale : 0;
 }
 
 static BoardCoord screen_to_board(const AppContext *app, int x, int y) {
@@ -200,6 +151,176 @@ static BoardCoord screen_to_board(const AppContext *app, int x, int y) {
 	coord.col = (x - board.x) * app->config.cols / board.w;
 	coord.row = (y - board.y) * app->config.rows / board.h;
 	return coord;
+}
+
+static RenderPalette plant_palette(PlantType type) {
+	return type == PLANT_WALLNUT ? RENDER_PALETTE_WALLNUT : RENDER_PALETTE_PLANT;
+}
+
+static const char *plant_code(PlantType type) {
+	switch (type) {
+	case PLANT_SUNFLOWER:
+		return "SUN";
+	case PLANT_PEASHOOTER:
+		return "PEA";
+	case PLANT_WALLNUT:
+		return "NUT";
+	case PLANT_NONE:
+	default:
+		return "NONE";
+	}
+}
+
+static int plant_cost(const AppContext *app, PlantType type) {
+	switch (type) {
+	case PLANT_SUNFLOWER:
+		return app->config.sunflower_cost;
+	case PLANT_PEASHOOTER:
+		return app->config.peashooter_cost;
+	case PLANT_WALLNUT:
+		return app->config.wallnut_cost;
+	case PLANT_NONE:
+	default:
+		return 0;
+	}
+}
+
+static const char *status_text(const RenderView *view) {
+	if (view->game_status == GAME_STATUS_WON) {
+		return "WIN";
+	}
+	if (view->game_status == GAME_STATUS_LOST) {
+		return "LOSE";
+	}
+	if (view->paused) {
+		return "PAUSE";
+	}
+
+	switch (view->status) {
+	case RENDER_STATUS_PLACED:
+		return "PLACED";
+	case RENDER_STATUS_REMOVED:
+		return "REMOVED";
+	case RENDER_STATUS_OCCUPIED:
+		return "OCCUPIED";
+	case RENDER_STATUS_OUT_OF_BOUNDS:
+		return "OOB";
+	case RENDER_STATUS_NO_SELECTION:
+		return "SELECT";
+	case RENDER_STATUS_NO_SUN:
+		return "NO SUN";
+	case RENDER_STATUS_NOT_FOUND:
+		return "EMPTY";
+	case RENDER_STATUS_RESET:
+		return "RESET";
+	case RENDER_STATUS_PLACEHOLDER:
+		return "F1 PLAY";
+	case RENDER_STATUS_NONE:
+	default:
+		return NULL;
+	}
+}
+
+static RenderPalette status_palette(const RenderView *view) {
+	if (view->game_status == GAME_STATUS_WON) {
+		return RENDER_PALETTE_SUCCESS;
+	}
+	if (view->game_status == GAME_STATUS_LOST) {
+		return RENDER_PALETTE_WARNING;
+	}
+	if (view->paused) {
+		return RENDER_PALETTE_PANEL;
+	}
+
+	switch (view->status) {
+	case RENDER_STATUS_PLACED:
+	case RENDER_STATUS_REMOVED:
+	case RENDER_STATUS_RESET:
+		return RENDER_PALETTE_SUCCESS;
+	case RENDER_STATUS_OCCUPIED:
+	case RENDER_STATUS_OUT_OF_BOUNDS:
+	case RENDER_STATUS_NO_SELECTION:
+	case RENDER_STATUS_NO_SUN:
+	case RENDER_STATUS_NOT_FOUND:
+		return RENDER_PALETTE_WARNING;
+	case RENDER_STATUS_PLACEHOLDER:
+		return RENDER_PALETTE_HIGHLIGHT;
+	case RENDER_STATUS_NONE:
+	default:
+		return RENDER_PALETTE_TEXT;
+	}
+}
+
+static void draw_framebuffer_to_target(const RenderView *view) {
+	for (int y = 0; y < view->board_height; ++y) {
+		for (int x = 0; x < view->board_width; ++x) {
+			const RenderPalette palette = (RenderPalette)view->pixels[y * view->board_width + x];
+			DrawPixel(x, y, palette_color(palette));
+		}
+	}
+}
+
+static void draw_card(const AppContext *app, const RenderView *view, int index, PlantType type) {
+	char buffer[16];
+	const IntRect rect = pvz_get_card_rect(&app->display_settings, index);
+	const bool selected = view->selected_plant == type;
+	const Color fill = palette_color(selected ? RENDER_PALETTE_HIGHLIGHT : RENDER_PALETTE_TILE_DARK);
+	const Color outline = palette_color(RENDER_PALETTE_TEXT);
+	const Color icon = palette_color(plant_palette(type));
+
+	DrawRectangle(rect.x, rect.y, rect.w, rect.h, fill);
+	DrawRectangleLinesEx((Rectangle){(float)rect.x, (float)rect.y, (float)rect.w, (float)rect.h},
+						 selected ? 4.0f : 2.0f, outline);
+	DrawRectangle(rect.x + 12, rect.y + 12, 28, 28, icon);
+
+	snprintf(buffer, sizeof(buffer), "%d", index + 1);
+	draw_text_3x5(buffer, rect.x + rect.w - 28, rect.y + 12, 4, outline);
+	draw_text_3x5(plant_code(type), rect.x + 12, rect.y + 52, 3, outline);
+	snprintf(buffer, sizeof(buffer), "%d", plant_cost(app, type));
+	draw_text_3x5(buffer, rect.x + 12, rect.y + rect.h - 28, 3, palette_color(RENDER_PALETTE_SUN));
+}
+
+static void draw_play_hud(const AppContext *app, const RenderView *view) {
+	char buffer[32];
+	const IntRect hud = app->display_settings.hud_rect;
+	const IntRect footer = app->display_settings.footer_rect;
+
+	DrawRectangle(hud.x, hud.y, hud.w, hud.h, palette_color(RENDER_PALETTE_PANEL));
+	DrawRectangle(footer.x, footer.y, footer.w, footer.h, palette_color(RENDER_PALETTE_PANEL));
+
+	draw_card(app, view, 0, PLANT_SUNFLOWER);
+	draw_card(app, view, 1, PLANT_PEASHOOTER);
+	draw_card(app, view, 2, PLANT_WALLNUT);
+
+	// Sun
+	snprintf(buffer, sizeof(buffer), "SUN %d", view->sun_count);
+	int sun_text_width = text_width_3x5(buffer, 3);
+	draw_text_3x5(buffer, footer.x + footer.w - 14 - sun_text_width, footer.y + 14, 3,
+				  palette_color(RENDER_PALETTE_TEXT));
+
+	// Info
+	draw_text_3x5("SPACE PAUSE", footer.x + 14, footer.y + 14, 3, palette_color(RENDER_PALETTE_TEXT));
+	draw_text_3x5("R RESET", footer.x + 14, footer.y + 42, 3, palette_color(RENDER_PALETTE_TEXT));
+
+	if (view->status != RENDER_STATUS_NONE && view->status != RENDER_STATUS_PLACEHOLDER && !view->paused &&
+		view->game_status == GAME_STATUS_RUNNING) {
+		const char *text = status_text(view);
+		if (text) {
+			const int width = text_width_3x5(text, 3);
+			draw_text_3x5(text, footer.x + footer.w - width - 14, footer.y + 42, 3,
+						  palette_color(status_palette(view)));
+		}
+	}
+}
+
+static void draw_placeholder_hud(const AppContext *app) {
+	const IntRect hud = app->display_settings.hud_rect;
+	const IntRect footer = app->display_settings.footer_rect;
+
+	DrawRectangle(hud.x, hud.y, hud.w, hud.h, palette_color(RENDER_PALETTE_PANEL));
+	DrawRectangle(footer.x, footer.y, footer.w, footer.h, palette_color(RENDER_PALETTE_PANEL));
+	draw_text_3x5("PLACEHOLDER", hud.x + 16, hud.y + 18, 4, palette_color(RENDER_PALETTE_TEXT));
+	draw_text_3x5("F1 PLAY", footer.x + 14, footer.y + 26, 4, palette_color(RENDER_PALETTE_HIGHLIGHT));
 }
 
 void raylib_poll_input(const AppContext *app, InputFrame *input) {
@@ -261,22 +382,10 @@ void raylib_render_view(AppContext *app, const RenderView *view) {
 	ensure_board_target(app);
 	ClearBackground(palette_color(RENDER_PALETTE_BG));
 
-	for (int i = 0; i < view->item_count; ++i) {
-		const RenderItem *item = &view->items[i];
-		if (!item->board_space) {
-			draw_item(item);
-		}
-	}
-
 	if (frontend_state.loaded) {
 		BeginTextureMode(frontend_state.board_target);
-		ClearBackground(BLANK);
-		for (int i = 0; i < view->item_count; ++i) {
-			const RenderItem *item = &view->items[i];
-			if (item->board_space) {
-				draw_item(item);
-			}
-		}
+		ClearBackground(palette_color(RENDER_PALETTE_BG));
+		draw_framebuffer_to_target(view);
 		EndTextureMode();
 
 		const IntRect board = app->display_settings.board_rect;
@@ -285,9 +394,10 @@ void raylib_render_view(AppContext *app, const RenderView *view) {
 		DrawTexturePro(frontend_state.board_target.texture, source, dest, (Vector2){0}, 0.0f, WHITE);
 	}
 
-	for (int i = 0; i < view->label_count; ++i) {
-		const RenderLabel *label = &view->labels[i];
-		DrawText(label->text, label->x, label->y, label->size, palette_color(label->palette));
+	if (view->status == RENDER_STATUS_PLACEHOLDER) {
+		draw_placeholder_hud(app);
+	} else {
+		draw_play_hud(app, view);
 	}
 }
 

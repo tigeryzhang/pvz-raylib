@@ -1,6 +1,7 @@
 #pragma once
 
 #include <stdbool.h>
+#include <stdint.h>
 
 #include "game.h"
 #include "pvz_config.h"
@@ -24,53 +25,31 @@ typedef enum {
 } RenderPalette;
 
 typedef enum {
-	RENDER_ITEM_BACKGROUND = 0,
-	RENDER_ITEM_PANEL,
-	RENDER_ITEM_TILE,
-	RENDER_ITEM_CARD,
-	RENDER_ITEM_HIGHLIGHT,
-	RENDER_ITEM_SUNFLOWER,
-	RENDER_ITEM_PEASHOOTER,
-	RENDER_ITEM_WALLNUT,
-	RENDER_ITEM_ZOMBIE_REGULAR,
-	RENDER_ITEM_ZOMBIE_CONE,
-	RENDER_ITEM_ZOMBIE_BUCKET,
-	RENDER_ITEM_PROJECTILE,
-	RENDER_ITEM_SUN,
-	RENDER_ITEM_OVERLAY,
-} RenderItemType;
+	RENDER_STATUS_NONE = 0,
+	RENDER_STATUS_PLACED,
+	RENDER_STATUS_REMOVED,
+	RENDER_STATUS_OCCUPIED,
+	RENDER_STATUS_OUT_OF_BOUNDS,
+	RENDER_STATUS_NO_SELECTION,
+	RENDER_STATUS_NO_SUN,
+	RENDER_STATUS_NOT_FOUND,
+	RENDER_STATUS_RESET,
+	RENDER_STATUS_PLACEHOLDER,
+} RenderStatus;
 
 typedef struct {
-	RenderItemType type;
-	RenderPalette palette;
-	IntRect rect;
-	int value;
-	bool board_space;
-	bool emphasized;
-} RenderItem;
-
-typedef struct {
-	char text[64];
-	int x;
-	int y;
-	int size;
-	RenderPalette palette;
-} RenderLabel;
-
-typedef struct {
-	RenderItem items[PVZ_MAX_RENDER_ITEMS];
-	int item_count;
-	RenderLabel labels[PVZ_MAX_RENDER_LABELS];
-	int label_count;
+	int board_width;
+	int board_height;
+	uint8_t pixels[PVZ_MAX_RENDER_PIXELS];
+	PlantType selected_plant;
+	int sun_count;
+	bool paused;
+	GameStatus game_status;
+	RenderStatus status;
 } RenderView;
 
-typedef struct {
-	char banner[64];
-} PlaySceneViewModel;
-
 void render_view_reset(RenderView *view);
-bool render_view_push_item(RenderView *view, RenderItem item);
-bool render_view_push_label(RenderView *view, const char *text, int x, int y, int size, RenderPalette palette);
-void presentation_build_play_view(RenderView *view, const GameState *game, const DisplaySettings *metrics,
-								  const PlaySceneViewModel *model);
-void presentation_build_placeholder_view(RenderView *view, const DisplaySettings *metrics);
+
+// Specific impls for each game scene
+void presentation_build_play_view(RenderView *view, const GameState *game, RenderStatus status);
+void presentation_build_placeholder_view(RenderView *view, const GameConfig *config);

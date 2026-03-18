@@ -6,8 +6,8 @@
 typedef struct {
 	GameState game;
 	float accumulator;
-	char banner[64];
-	float banner_timer;
+	RenderStatus status;
+	float status_timer;
 } PlaySceneState;
 
 typedef struct {

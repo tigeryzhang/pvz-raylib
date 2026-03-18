@@ -150,7 +150,7 @@ static void test_scene_restart_and_transition(TestStats *stats) {
 	record_assert(stats, app.active_scene_id == SCENE_ID_PLACEHOLDER, "scene manager should transition to placeholder");
 
 	app_build_view(&app, &view);
-	record_assert(stats, view.label_count > 0, "placeholder scene should build a view");
+	record_assert(stats, view.status == RENDER_STATUS_PLACEHOLDER, "placeholder scene should build a placeholder view");
 	app_shutdown(&app);
 }
 
