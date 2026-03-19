@@ -1,16 +1,24 @@
+// Needs the pvz prefix to avoid naming conflicts
 #pragma once
 
 #include <stdbool.h>
 
 #define PVZ_MAX_ROWS 8
 #define PVZ_MAX_COLS 12
+
 #define PVZ_MAX_PLANTS 48
 #define PVZ_MAX_ZOMBIES 32
 #define PVZ_MAX_PROJECTILES 64
 #define PVZ_MAX_SUNS 32
-#define PVZ_MAX_BOARD_WIDTH 512
-#define PVZ_MAX_BOARD_HEIGHT 512
-#define PVZ_MAX_RENDER_PIXELS (PVZ_MAX_BOARD_WIDTH * PVZ_MAX_BOARD_HEIGHT)
+
+#define PVZ_MAX_BOARD_WIDTH 128
+#define PVZ_MAX_BOARD_HEIGHT 64
+#define PVZ_MAX_BOARD_PIXELS (PVZ_MAX_BOARD_WIDTH * PVZ_MAX_BOARD_HEIGHT)
+
+#define PVZ_MAX_HUD_WIDTH 480
+#define PVZ_MAX_HUD_HEIGHT 320
+#define PVZ_MAX_HUD_PIXELS (PVZ_MAX_HUD_WIDTH * PVZ_MAX_HUD_HEIGHT)
+
 #define PVZ_MAX_INPUT_COMMANDS 32
 
 typedef struct {
@@ -24,8 +32,10 @@ typedef struct {
 	int rows;
 	int cols;
 	int tile_size;
-	int board_resolution_width;
-	int board_resolution_height;
+	int board_x_resolution;
+	int board_y_resolution;
+	int hud_x_resolution;
+	int hud_y_resolution;
 	int margin;
 	int hud_height;
 	int footer_height;

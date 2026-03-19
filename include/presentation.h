@@ -6,6 +6,7 @@
 #include "game.h"
 #include "pvz_config.h"
 
+// Maybe convert to defines to save memory?
 typedef enum {
 	RENDER_PALETTE_BG = 0,
 	RENDER_PALETTE_PANEL,
@@ -37,10 +38,15 @@ typedef enum {
 	RENDER_STATUS_PLACEHOLDER,
 } RenderStatus;
 
+typedef enum { RENDER_TARGET_BOARD = 0, RENDER_TARGET_HUD } RenderTarget;
+
 typedef struct {
 	int board_width;
 	int board_height;
-	uint8_t pixels[PVZ_MAX_RENDER_PIXELS];
+	RenderPalette board_pixels[PVZ_MAX_BOARD_PIXELS];
+	int hud_width;
+	int hud_height;
+	RenderPalette hud_pixels[PVZ_MAX_HUD_PIXELS];
 	PlantType selected_plant;
 	int sun_count;
 	bool paused;

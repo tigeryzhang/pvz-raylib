@@ -1,22 +1,15 @@
 #include "pvz_config.h"
-
-static int clamp_int(int value, int min_value, int max_value) {
-	if (value < min_value) {
-		return min_value;
-	}
-	if (value > max_value) {
-		return max_value;
-	}
-	return value;
-}
+#include "pvz_utils.h"
 
 GameConfig pvz_make_default_config(void) {
 	GameConfig config = {
 		.rows = 4,
 		.cols = 7,
 		.tile_size = 16,
-		.board_resolution_width = 128,
-		.board_resolution_height = 64,
+		.board_x_resolution = 128,
+		.board_y_resolution = 64,
+		.hud_x_resolution = 480,
+		.hud_y_resolution = 320,
 		.margin = 20,
 		.hud_height = 120,
 		.footer_height = 84,
@@ -57,8 +50,8 @@ void pvz_clamp_config(GameConfig *config) {
 	config->rows = clamp_int(config->rows, 1, PVZ_MAX_ROWS);
 	config->cols = clamp_int(config->cols, 3, PVZ_MAX_COLS);
 	config->tile_size = clamp_int(config->tile_size, 32, 144);
-	config->board_resolution_width = clamp_int(config->board_resolution_width, config->cols, 512);
-	config->board_resolution_height = clamp_int(config->board_resolution_height, config->rows, 512);
+	config->board_x_resolution = clamp_int(config->board_x_resolution, config->cols, 512);
+	config->board_y_resolution = clamp_int(config->board_y_resolution, config->rows, 512);
 	config->margin = clamp_int(config->margin, 8, 48);
 	config->hud_height = clamp_int(config->hud_height, 72, 180);
 	config->footer_height = clamp_int(config->footer_height, 48, 120);

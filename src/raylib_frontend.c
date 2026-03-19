@@ -65,8 +65,9 @@ static Color palette_color(RenderPalette palette) {
 }
 
 static void ensure_board_target(const AppContext *app) {
-	const int width = app->config.board_resolution_width;
-	const int height = app->config.board_resolution_height;
+	const int width = app->config.board_x_resolution;
+	const int height = app->config.board_y_resolution;
+
 	if (width <= 0 || height <= 0) {
 		return;
 	}
@@ -153,11 +154,11 @@ static BoardCoord screen_to_board(const AppContext *app, int x, int y) {
 	return coord;
 }
 
-static RenderPalette plant_palette(PlantType type) {
+static RenderPalette plant_card_palette(PlantType type) {
 	return type == PLANT_WALLNUT ? RENDER_PALETTE_WALLNUT : RENDER_PALETTE_PLANT;
 }
 
-static const char *plant_code(PlantType type) {
+static const char *plant_name(PlantType type) {
 	switch (type) {
 	case PLANT_SUNFLOWER:
 		return "SUN";
@@ -254,8 +255,7 @@ static RenderPalette status_palette(const RenderView *view) {
 static void draw_framebuffer_to_target(const RenderView *view) {
 	for (int y = 0; y < view->board_height; ++y) {
 		for (int x = 0; x < view->board_width; ++x) {
-			const RenderPalette palette = (RenderPalette)view->pixels[y * view->board_width + x];
-			DrawPixel(x, y, palette_color(palette));
+			DrawPixel(x, y, palette_color(view->board_pixels[y * view->board_width + x]));
 		}
 	}
 }
@@ -266,16 +266,19 @@ static void draw_card(const AppContext *app, const RenderView *view, int index, 
 	const bool selected = view->selected_plant == type;
 	const Color fill = palette_color(selected ? RENDER_PALETTE_HIGHLIGHT : RENDER_PALETTE_TILE_DARK);
 	const Color outline = palette_color(RENDER_PALETTE_TEXT);
-	const Color icon = palette_color(plant_palette(type));
+	const Color icon = palette_color(plant_card_palette(type));
 
 	DrawRectangle(rect.x, rect.y, rect.w, rect.h, fill);
 	DrawRectangleLinesEx((Rectangle){(float)rect.x, (float)rect.y, (float)rect.w, (float)rect.h},
 						 selected ? 4.0f : 2.0f, outline);
 	DrawRectangle(rect.x + 12, rect.y + 12, 28, 28, icon);
 
+	// Plant index
 	snprintf(buffer, sizeof(buffer), "%d", index + 1);
 	draw_text_3x5(buffer, rect.x + rect.w - 28, rect.y + 12, 4, outline);
-	draw_text_3x5(plant_code(type), rect.x + 12, rect.y + 52, 3, outline);
+	draw_text_3x5(plant_name(type), rect.x + 12, rect.y + 52, 3, outline);
+
+	// Plant cost
 	snprintf(buffer, sizeof(buffer), "%d", plant_cost(app, type));
 	draw_text_3x5(buffer, rect.x + 12, rect.y + rect.h - 28, 3, palette_color(RENDER_PALETTE_SUN));
 }
@@ -354,6 +357,7 @@ void raylib_poll_input(const AppContext *app, InputFrame *input) {
 
 	if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
 		bool handled = false;
+		// Handle input consumption for ui
 		for (int index = 0; index < 3; ++index) {
 			const IntRect card = pvz_get_card_rect(&app->display_settings, index);
 			if (pvz_rect_contains(card, mouse_x, mouse_y)) {
@@ -362,6 +366,7 @@ void raylib_poll_input(const AppContext *app, InputFrame *input) {
 				break;
 			}
 		}
+
 		if (!handled) {
 			const BoardCoord coord = screen_to_board(app, mouse_x, mouse_y);
 			if (coord.row >= 0) {

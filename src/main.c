@@ -22,8 +22,8 @@ static void apply_startup_config(GameConfig *config) {
 	config->rows = CONFIGURED_ROWS;
 	config->cols = CONFIGURED_COLS;
 	config->tile_size = CONFIGURED_TILE_SIZE;
-	config->board_resolution_width = CONFIGURED_BOARD_RESOLUTION_WIDTH;
-	config->board_resolution_height = CONFIGURED_BOARD_RESOLUTION_HEIGHT;
+	config->board_x_resolution = CONFIGURED_BOARD_RESOLUTION_WIDTH;
+	config->board_y_resolution = CONFIGURED_BOARD_RESOLUTION_HEIGHT;
 }
 
 static void print_usage(const char *argv0) { printf("Usage: %s [--test]\n", argv0); }
