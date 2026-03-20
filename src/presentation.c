@@ -3,6 +3,7 @@
 #include "pvz_utils.h"
 
 #include <math.h>
+#include <stdint.h>
 #include <string.h>
 
 static IntRect board_cell_rect(const GameState *game, int row, int col, int padding) {
@@ -81,7 +82,7 @@ static void render_view_set_pixel(RenderView *view, RenderTarget target, int x, 
 		return;
 	}
 
-	RenderPalette *pixels = NULL;
+	uint8_t *pixels = NULL;
 	switch (target) {
 	case RENDER_TARGET_BOARD:
 		pixels = view->board_pixels;
@@ -93,7 +94,7 @@ static void render_view_set_pixel(RenderView *view, RenderTarget target, int x, 
 		return;
 	}
 
-	pixels[y * view->board_width + x] = palette;
+	pixels[y * view->board_width + x] = (uint8_t)palette;
 }
 
 static void render_view_fill_rect(RenderView *view, RenderTarget target, IntRect rect, RenderPalette palette) {
@@ -119,7 +120,7 @@ static void render_view_fill_rect(RenderView *view, RenderTarget target, IntRect
 		y1 = view->board_height;
 	}
 
-	RenderPalette *pixels = NULL;
+	uint8_t *pixels = NULL;
 	switch (target) {
 	case RENDER_TARGET_BOARD:
 		pixels = view->board_pixels;
@@ -133,7 +134,7 @@ static void render_view_fill_rect(RenderView *view, RenderTarget target, IntRect
 
 	for (int y = y0; y < y1; ++y) {
 		for (int x = x0; x < x1; ++x) {
-			pixels[y * view->board_width + x] = palette;
+			pixels[y * view->board_width + x] = (uint8_t)palette;
 		}
 	}
 }
