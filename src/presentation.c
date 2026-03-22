@@ -1,9 +1,12 @@
 #include "presentation.h"
+#include "game_types.h"
 #include "pvz_config.h"
 #include "pvz_utils.h"
+#include "raylib.h"
 
 #include <math.h>
 #include <stdint.h>
+#include <stdio.h>
 #include <string.h>
 
 static const uint8_t digit_glyphs[10][5] = {
@@ -14,7 +17,7 @@ static const uint8_t digit_glyphs[10][5] = {
 static const uint8_t letter_glyphs[26][5] = {
 	{2, 5, 7, 5, 5}, {6, 5, 6, 5, 6}, {3, 4, 4, 4, 3}, {6, 5, 5, 5, 6}, {7, 4, 6, 4, 7}, {7, 4, 6, 4, 4},
 	{3, 4, 5, 5, 3}, {5, 5, 7, 5, 5}, {7, 2, 2, 2, 7}, {1, 1, 1, 5, 2}, {5, 5, 6, 5, 5}, {4, 4, 4, 4, 7},
-	{5, 7, 7, 5, 5}, {5, 7, 7, 7, 5}, {2, 5, 5, 5, 2}, {6, 5, 6, 4, 4}, {2, 5, 5, 7, 3}, {6, 5, 6, 5, 5},
+	{5, 7, 7, 5, 5}, {6, 5, 5, 5, 5}, {2, 5, 5, 5, 2}, {6, 5, 6, 4, 4}, {2, 5, 5, 7, 3}, {6, 5, 6, 5, 5},
 	{3, 4, 2, 1, 6}, {7, 2, 2, 2, 2}, {5, 5, 5, 5, 7}, {5, 5, 5, 5, 2}, {5, 5, 7, 7, 5}, {5, 5, 2, 5, 5},
 	{5, 5, 2, 2, 2}, {7, 1, 2, 4, 7},
 };
@@ -124,7 +127,7 @@ static void set_pixel(RenderView *view, RenderTarget target, int x, int y, Rende
 	pixels[y * view->board_width + x] = (uint8_t)palette;
 }
 
-static void fill_rect(RenderView *view, RenderTarget target, IntRect rect, RenderPalette palette) {
+static void draw_rect(RenderView *view, RenderTarget target, IntRect rect, RenderPalette palette, int thickness) {
 	if (!view || rect.w <= 0 || rect.h <= 0) {
 		return;
 	}
@@ -155,9 +158,19 @@ static void fill_rect(RenderView *view, RenderTarget target, IntRect rect, Rende
 		return;
 	}
 
-	for (int y = y0; y < y1; ++y) {
-		for (int x = x0; x < x1; ++x) {
-			pixels[y * width + x] = (uint8_t)palette;
+	if (thickness == 0) {
+		for (int y = y0; y < y1; ++y) {
+			for (int x = x0; x < x1; ++x) {
+				pixels[y * width + x] = (uint8_t)palette;
+			}
+		}
+	} else {
+		for (int y = y0; y < y1; ++y) {
+			for (int x = x0; x < x1; ++x) {
+				if (y < y0 + thickness || y1 - thickness <= y || x < x0 + thickness || x1 - thickness <= x) {
+					pixels[y * width + x] = (uint8_t)palette;
+				}
+			}
 		}
 	}
 }
@@ -194,8 +207,8 @@ static void draw_char_3x5(RenderView *view, RenderTarget target, char c, int x, 
 			if ((rows[row] & bit) == 0) {
 				continue;
 			}
-			fill_rect(view, target, (IntRect){.x = x + col * scale, .y = y + row * scale, .w = scale, .h = scale},
-					  palette);
+			draw_rect(view, target, (IntRect){.x = x + col * scale, .y = y + row * scale, .w = scale, .h = scale},
+					  palette, 0);
 			// DrawRectangle(x + col * scale, y + row * scale, scale, scale, color);
 		}
 	}
@@ -215,9 +228,9 @@ static void draw_text_3x5(RenderView *view, RenderTarget target, const char *tex
 static void draw_tile_checkerboard(RenderView *view, const GameState *game) {
 	for (int row = 0; row < game->config->rows; ++row) {
 		for (int col = 0; col < game->config->cols; ++col) {
-			const IntRect rect = board_cell_rect(game, row, col, 1);
+			const IntRect rect = board_cell_rect(game, row, col, 0);
 			const RenderPalette palette = ((row + col) % 2 == 0) ? RENDER_PALETTE_TILE_LIGHT : RENDER_PALETTE_TILE_DARK;
-			fill_rect(view, RENDER_TARGET_BOARD, rect, palette);
+			draw_rect(view, RENDER_TARGET_BOARD, rect, palette, 0);
 		}
 	}
 }
@@ -226,53 +239,53 @@ static void draw_sunflower(RenderView *view, IntRect rect) {
 	const int stem_w = rect.w / 6 > 0 ? rect.w / 6 : 1;
 	const int center = rect.x + rect.w / 2;
 	const int petal = rect.w / 5 > 0 ? rect.w / 5 : 1;
-	fill_rect(view, RENDER_TARGET_BOARD, (IntRect){center - stem_w / 2, rect.y + rect.h / 2, stem_w, rect.h / 3},
-			  RENDER_PALETTE_PLANT);
-	fill_rect(view, RENDER_TARGET_BOARD, (IntRect){center - petal / 2, rect.y + rect.h / 2 - petal / 2, petal, petal},
-			  RENDER_PALETTE_WALLNUT);
-	fill_rect(view, RENDER_TARGET_BOARD, (IntRect){center - petal / 2, rect.y + rect.h / 4 - petal / 2, petal, petal},
-			  RENDER_PALETTE_SUN);
-	fill_rect(view, RENDER_TARGET_BOARD,
-			  (IntRect){center - petal / 2, rect.y + rect.h * 3 / 4 - petal / 2, petal, petal}, RENDER_PALETTE_SUN);
-	fill_rect(view, RENDER_TARGET_BOARD,
+	draw_rect(view, RENDER_TARGET_BOARD, (IntRect){center - stem_w / 2, rect.y + rect.h / 2, stem_w, rect.h / 3},
+			  RENDER_PALETTE_PLANT, 0);
+	draw_rect(view, RENDER_TARGET_BOARD, (IntRect){center - petal / 2, rect.y + rect.h / 2 - petal / 2, petal, petal},
+			  RENDER_PALETTE_WALLNUT, 0);
+	draw_rect(view, RENDER_TARGET_BOARD, (IntRect){center - petal / 2, rect.y + rect.h / 4 - petal / 2, petal, petal},
+			  RENDER_PALETTE_SUN, 0);
+	draw_rect(view, RENDER_TARGET_BOARD,
+			  (IntRect){center - petal / 2, rect.y + rect.h * 3 / 4 - petal / 2, petal, petal}, RENDER_PALETTE_SUN, 0);
+	draw_rect(view, RENDER_TARGET_BOARD,
 			  (IntRect){rect.x + rect.w / 4 - petal / 2, rect.y + rect.h / 2 - petal / 2, petal, petal},
-			  RENDER_PALETTE_SUN);
-	fill_rect(view, RENDER_TARGET_BOARD,
+			  RENDER_PALETTE_SUN, 0);
+	draw_rect(view, RENDER_TARGET_BOARD,
 			  (IntRect){rect.x + rect.w * 3 / 4 - petal / 2, rect.y + rect.h / 2 - petal / 2, petal, petal},
-			  RENDER_PALETTE_SUN);
+			  RENDER_PALETTE_SUN, 0);
 }
 
 static void draw_peashooter(RenderView *view, IntRect rect) {
 	const int body = rect.w / 4 > 0 ? rect.w / 4 : 1;
 	const int center = rect.x + rect.w / 2;
-	fill_rect(view, RENDER_TARGET_BOARD, (IntRect){center - body / 2, rect.y + rect.h / 3, body, rect.h / 3},
-			  RENDER_PALETTE_PLANT);
-	fill_rect(view, RENDER_TARGET_BOARD, (IntRect){center, rect.y + rect.h / 4, rect.w / 3, rect.h / 4},
-			  RENDER_PALETTE_PLANT);
-	fill_rect(view, RENDER_TARGET_BOARD,
+	draw_rect(view, RENDER_TARGET_BOARD, (IntRect){center - body / 2, rect.y + rect.h / 3, body, rect.h / 3},
+			  RENDER_PALETTE_PLANT, 0);
+	draw_rect(view, RENDER_TARGET_BOARD, (IntRect){center, rect.y + rect.h / 4, rect.w / 3, rect.h / 4},
+			  RENDER_PALETTE_PLANT, 0);
+	draw_rect(view, RENDER_TARGET_BOARD,
 			  (IntRect){center + rect.w / 4, rect.y + rect.h / 3, rect.w / 10 > 0 ? rect.w / 10 : 1,
 						rect.h / 10 > 0 ? rect.h / 10 : 1},
-			  RENDER_PALETTE_BG);
-	fill_rect(view, RENDER_TARGET_BOARD,
+			  RENDER_PALETTE_BG, 0);
+	draw_rect(view, RENDER_TARGET_BOARD,
 			  (IntRect){center - rect.w / 4, rect.y + rect.h * 3 / 4, rect.w / 6 > 0 ? rect.w / 6 : 1,
 						rect.h / 8 > 0 ? rect.h / 8 : 1},
-			  RENDER_PALETTE_PLANT);
-	fill_rect(
+			  RENDER_PALETTE_PLANT, 0);
+	draw_rect(
 		view, RENDER_TARGET_BOARD,
 		(IntRect){center, rect.y + rect.h * 3 / 4, rect.w / 6 > 0 ? rect.w / 6 : 1, rect.h / 8 > 0 ? rect.h / 8 : 1},
-		RENDER_PALETTE_PLANT);
+		RENDER_PALETTE_PLANT, 0);
 }
 
 static void draw_wallnut(RenderView *view, IntRect rect) {
-	fill_rect(view, RENDER_TARGET_BOARD, rect, RENDER_PALETTE_WALLNUT);
-	fill_rect(view, RENDER_TARGET_BOARD,
+	draw_rect(view, RENDER_TARGET_BOARD, rect, RENDER_PALETTE_WALLNUT, 0);
+	draw_rect(view, RENDER_TARGET_BOARD,
 			  (IntRect){rect.x + rect.w / 4, rect.y + rect.h / 3, rect.w / 10 > 0 ? rect.w / 10 : 1,
 						rect.h / 10 > 0 ? rect.h / 10 : 1},
-			  RENDER_PALETTE_TEXT);
-	fill_rect(view, RENDER_TARGET_BOARD,
+			  RENDER_PALETTE_TEXT, 0);
+	draw_rect(view, RENDER_TARGET_BOARD,
 			  (IntRect){rect.x + rect.w * 3 / 5, rect.y + rect.h / 3, rect.w / 10 > 0 ? rect.w / 10 : 1,
 						rect.h / 10 > 0 ? rect.h / 10 : 1},
-			  RENDER_PALETTE_TEXT);
+			  RENDER_PALETTE_TEXT, 0);
 }
 
 static void draw_plant(RenderView *view, PlantType type, IntRect rect) {
@@ -297,39 +310,64 @@ static void draw_zombie(RenderView *view, ZombieType type, IntRect rect) {
 	const int body_w = rect.w / 3 > 0 ? rect.w / 3 : 1;
 	const int body_x = rect.x + rect.w / 2 - body_w / 2;
 
-	fill_rect(view, RENDER_TARGET_BOARD, (IntRect){body_x, rect.y + head, body_w, rect.h / 3}, RENDER_PALETTE_ZOMBIE);
-	fill_rect(view, RENDER_TARGET_BOARD,
+	draw_rect(view, RENDER_TARGET_BOARD, (IntRect){body_x, rect.y + head, body_w, rect.h / 3}, RENDER_PALETTE_ZOMBIE,
+			  0);
+	draw_rect(view, RENDER_TARGET_BOARD,
 			  (IntRect){body_x - body_w / 2, rect.y + head + rect.h / 12, body_w / 2, rect.h / 4},
-			  RENDER_PALETTE_ZOMBIE);
-	fill_rect(view, RENDER_TARGET_BOARD,
-			  (IntRect){body_x + body_w, rect.y + head + rect.h / 12, body_w / 2, rect.h / 4}, RENDER_PALETTE_ZOMBIE);
-	fill_rect(view, RENDER_TARGET_BOARD, (IntRect){body_x, rect.y + head + rect.h / 3, body_w / 3, rect.h / 3},
-			  RENDER_PALETTE_ZOMBIE);
-	fill_rect(view, RENDER_TARGET_BOARD,
+			  RENDER_PALETTE_ZOMBIE, 0);
+	draw_rect(view, RENDER_TARGET_BOARD,
+			  (IntRect){body_x + body_w, rect.y + head + rect.h / 12, body_w / 2, rect.h / 4}, RENDER_PALETTE_ZOMBIE,
+			  0);
+	draw_rect(view, RENDER_TARGET_BOARD, (IntRect){body_x, rect.y + head + rect.h / 3, body_w / 3, rect.h / 3},
+			  RENDER_PALETTE_ZOMBIE, 0);
+	draw_rect(view, RENDER_TARGET_BOARD,
 			  (IntRect){body_x + body_w * 2 / 3, rect.y + head + rect.h / 3, body_w / 3, rect.h / 3},
-			  RENDER_PALETTE_ZOMBIE);
-	fill_rect(view, RENDER_TARGET_BOARD, (IntRect){body_x, rect.y + rect.h / 12, body_w, head}, RENDER_PALETTE_TEXT);
+			  RENDER_PALETTE_ZOMBIE, 0);
+	draw_rect(view, RENDER_TARGET_BOARD, (IntRect){body_x, rect.y + rect.h / 12, body_w, head}, RENDER_PALETTE_TEXT, 0);
 
 	if (type == ZOMBIE_CONE) {
-		fill_rect(view, RENDER_TARGET_BOARD, (IntRect){body_x - body_w / 4, rect.y, body_w + body_w / 2, head},
-				  RENDER_PALETTE_CONE);
+		draw_rect(view, RENDER_TARGET_BOARD, (IntRect){body_x - body_w / 4, rect.y, body_w + body_w / 2, head},
+				  RENDER_PALETTE_CONE, 0);
 	} else if (type == ZOMBIE_BUCKETHEAD) {
-		fill_rect(view, RENDER_TARGET_BOARD, (IntRect){body_x - body_w / 5, rect.y, body_w + body_w / 3, head},
-				  RENDER_PALETTE_BUCKET);
+		draw_rect(view, RENDER_TARGET_BOARD, (IntRect){body_x - body_w / 5, rect.y, body_w + body_w / 3, head},
+				  RENDER_PALETTE_BUCKET, 0);
 	}
 }
 
 static void draw_projectile(RenderView *view, IntRect rect) {
-	fill_rect(view, RENDER_TARGET_BOARD, rect, RENDER_PALETTE_PROJECTILE);
+	draw_rect(view, RENDER_TARGET_BOARD, rect, RENDER_PALETTE_PROJECTILE, 0);
 }
 
 static void draw_sun(RenderView *view, IntRect rect) {
-	fill_rect(view, RENDER_TARGET_BOARD, rect, RENDER_PALETTE_SUN);
-	fill_rect(view, RENDER_TARGET_BOARD, (IntRect){rect.x + rect.w / 4, rect.y + rect.h / 4, rect.w / 2, rect.h / 2},
-			  RENDER_PALETTE_HIGHLIGHT);
+	draw_rect(view, RENDER_TARGET_BOARD, rect, RENDER_PALETTE_SUN, 0);
+	draw_rect(view, RENDER_TARGET_BOARD, (IntRect){rect.x + rect.w / 4, rect.y + rect.h / 4, rect.w / 2, rect.h / 2},
+			  RENDER_PALETTE_HIGHLIGHT, 0);
+}
+
+static void draw_card(RenderView *view, const GameConfig *config, int index, PlantType type) {
+	char buffer[16];
+	const IntRect rect = {.x = view->hud_width - 70, .y = 10 + 100 * index, .w = 60, .h = 90};
+	const bool selected = view->selected_plant == type;
+	const RenderPalette fill = selected ? RENDER_PALETTE_HIGHLIGHT : RENDER_PALETTE_TILE_DARK;
+	const RenderPalette outline = RENDER_PALETTE_TEXT;
+	const RenderPalette icon = type == PLANT_WALLNUT ? RENDER_PALETTE_WALLNUT : RENDER_PALETTE_PLANT;
+
+	draw_rect(view, RENDER_TARGET_HUD, rect, fill, 0);
+	draw_rect(view, RENDER_TARGET_HUD, rect, outline, selected ? 4 : 2);
+	// DrawRectangle(rect.x + 12, rect.y + 12, 28, 28, icon);
+
+	// // Plant index
+	// snprintf(buffer, sizeof(buffer), "%d", index + 1);
+	// draw_text_3x5(buffer, rect.x + rect.w - 28, rect.y + 12, 4, outline);
+	// draw_text_3x5(plant_name(type), rect.x + 12, rect.y + 52, 3, outline);
+
+	// // Plant cost
+	// snprintf(buffer, sizeof(buffer), "%d", plant_cost(app, type));
+	// draw_text_3x5(buffer, rect.x + 12, rect.y + rect.h - 28, 3, palette_color(RENDER_PALETTE_SUN));
 }
 
 void presentation_build_play_view(RenderView *view, const GameState *game, RenderStatus status) {
+	// Draw game
 	const int unit_size = board_unit_size(game->config);
 	const int plant_padding = unit_size / 8 > 0 ? unit_size / 8 : 1;
 	const int zombie_size = unit_size - unit_size / 5;
@@ -378,8 +416,18 @@ void presentation_build_play_view(RenderView *view, const GameState *game, Rende
 		draw_sun(view, board_entity_rect(game, game->suns[i].y, game->suns[i].x, sun_size));
 	}
 
-	fill_rect(view, RENDER_TARGET_HUD, (IntRect){.x = 10, .y = 10, .w = 50, .h = 50}, RENDER_PALETTE_HIGHLIGHT);
-	draw_text_3x5(view, RENDER_TARGET_HUD, "Test", 70, 10, 5, RENDER_PALETTE_TEXT);
+	// Draw hud
+	draw_rect(view, RENDER_TARGET_HUD, (IntRect){.x = 0, .y = 0, .w = view->hud_width, .h = view->hud_width},
+			  RENDER_PALETTE_PANEL, 0);
+
+	// Sun
+	char buffer[10];
+	snprintf(buffer, sizeof(buffer), "SUN: %d", view->sun_count);
+	draw_text_3x5(view, RENDER_TARGET_HUD, buffer, 10, 10, 3, RENDER_PALETTE_TEXT);
+
+	draw_card(view, game->config, 0, PLANT_SUNFLOWER);
+	draw_card(view, game->config, 1, PLANT_PEASHOOTER);
+	draw_card(view, game->config, 2, PLANT_WALLNUT);
 }
 
 void presentation_build_placeholder_view(RenderView *view, const GameConfig *config) {
@@ -397,11 +445,11 @@ void presentation_build_placeholder_view(RenderView *view, const GameConfig *con
 		}
 	}
 
-	fill_rect(view, RENDER_TARGET_BOARD,
+	draw_rect(view, RENDER_TARGET_BOARD,
 			  (IntRect){view->board_width / 4, view->board_height / 4, view->board_width / 2, view->board_height / 2},
-			  RENDER_PALETTE_PANEL);
-	fill_rect(view, RENDER_TARGET_BOARD,
+			  RENDER_PALETTE_PANEL, 0);
+	draw_rect(view, RENDER_TARGET_BOARD,
 			  (IntRect){view->board_width / 4 + 4, view->board_height / 4 + 4, view->board_width / 2 - 8,
 						view->board_height / 2 - 8},
-			  RENDER_PALETTE_BG);
+			  RENDER_PALETTE_BG, 0);
 }

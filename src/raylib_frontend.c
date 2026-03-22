@@ -100,38 +100,6 @@ static BoardCoord screen_to_board(const AppContext *app, int x, int y) {
 	return coord;
 }
 
-static RenderPalette plant_card_palette(PlantType type) {
-	return type == PLANT_WALLNUT ? RENDER_PALETTE_WALLNUT : RENDER_PALETTE_PLANT;
-}
-
-static const char *plant_name(PlantType type) {
-	switch (type) {
-	case PLANT_SUNFLOWER:
-		return "SUN";
-	case PLANT_PEASHOOTER:
-		return "PEA";
-	case PLANT_WALLNUT:
-		return "NUT";
-	case PLANT_NONE:
-	default:
-		return "NONE";
-	}
-}
-
-static int plant_cost(const AppContext *app, PlantType type) {
-	switch (type) {
-	case PLANT_SUNFLOWER:
-		return app->config.sunflower_cost;
-	case PLANT_PEASHOOTER:
-		return app->config.peashooter_cost;
-	case PLANT_WALLNUT:
-		return app->config.wallnut_cost;
-	case PLANT_NONE:
-	default:
-		return 0;
-	}
-}
-
 static const char *status_text(const RenderView *view) {
 	if (view->game_status == GAME_STATUS_WON) {
 		return "WIN";
@@ -305,23 +273,23 @@ void raylib_poll_input(const AppContext *app, InputFrame *input) {
 	const int mouse_y = (int)mouse.y;
 
 	if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
-		bool handled = false;
-		// Handle input consumption for ui
-		for (int index = 0; index < 3; ++index) {
-			const IntRect card = pvz_get_card_rect(&app->display_settings, index);
-			if (pvz_rect_contains(card, mouse_x, mouse_y)) {
-				input_frame_push(input, (InputCommand){.type = INPUT_COMMAND_SELECT_CARD, .index = index});
-				handled = true;
-				break;
-			}
-		}
+		// bool handled = false;
+		// // Handle input consumption for ui
+		// for (int index = 0; index < 3; ++index) {
+		// 	const IntRect card = pvz_get_card_rect(&app->display_settings, index);
+		// 	if (pvz_rect_contains(card, mouse_x, mouse_y)) {
+		// 		input_frame_push(input, (InputCommand){.type = INPUT_COMMAND_SELECT_CARD, .index = index});
+		// 		handled = true;
+		// 		break;
+		// 	}
+		// }
 
-		if (!handled) {
-			const BoardCoord coord = screen_to_board(app, mouse_x, mouse_y);
-			if (coord.row >= 0) {
-				input_frame_push(input, (InputCommand){.type = INPUT_COMMAND_PLACE_TILE, .coord = coord});
-			}
+		// if (!handled) {
+		const BoardCoord coord = screen_to_board(app, mouse_x, mouse_y);
+		if (coord.row >= 0) {
+			input_frame_push(input, (InputCommand){.type = INPUT_COMMAND_PLACE_TILE, .coord = coord});
 		}
+		// }
 	}
 
 	if (IsMouseButtonPressed(MOUSE_BUTTON_RIGHT)) {

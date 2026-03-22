@@ -1,6 +1,8 @@
 // Needs the pvz prefix to avoid naming conflicts
 #pragma once
 
+#include "game_types.h"
+
 #include <stdbool.h>
 
 #define PVZ_MAX_ROWS 8
@@ -76,5 +78,6 @@ typedef struct {
 GameConfig pvz_make_default_config(void);
 void pvz_clamp_config(GameConfig *config);
 DisplaySettings pvz_make_display_settings(const GameConfig *config);
-IntRect pvz_get_card_rect(const DisplaySettings *metrics, int index);
 bool pvz_rect_contains(IntRect rect, int x, int y);
+
+int plant_cost(const GameConfig *config, PlantType type);

@@ -80,18 +80,20 @@ DisplaySettings pvz_make_display_settings(const GameConfig *config) {
 	return metrics;
 }
 
-IntRect pvz_get_card_rect(const DisplaySettings *metrics, int index) {
-	const int gap = 12;
-	const int card_width = (metrics->hud_rect.w - gap * 4) / 3;
-	IntRect rect = {
-		.x = metrics->hud_rect.x + gap + index * (card_width + gap),
-		.y = metrics->hud_rect.y + gap,
-		.w = card_width,
-		.h = metrics->hud_rect.h - gap * 2,
-	};
-	return rect;
-}
-
 bool pvz_rect_contains(IntRect rect, int x, int y) {
 	return x >= rect.x && x < rect.x + rect.w && y >= rect.y && y < rect.y + rect.h;
+}
+
+int plant_cost(const GameConfig *config, PlantType type) {
+	switch (type) {
+	case PLANT_SUNFLOWER:
+		return config->sunflower_cost;
+	case PLANT_PEASHOOTER:
+		return config->peashooter_cost;
+	case PLANT_WALLNUT:
+		return config->wallnut_cost;
+	case PLANT_NONE:
+	default:
+		return 0;
+	}
 }
