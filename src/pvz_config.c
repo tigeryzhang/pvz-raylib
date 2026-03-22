@@ -10,9 +10,9 @@ GameConfig pvz_make_default_config(void) {
 		.board_y_resolution = 64,
 		.hud_x_resolution = 480,
 		.hud_y_resolution = 320,
-		.margin = 20,
-		.hud_height = 120,
-		.footer_height = 84,
+		.margin = 12,
+		.hud_width = 480,
+		.hud_height = 320,
 		.starting_sun = 200,
 		.sunflower_cost = 50,
 		.peashooter_cost = 100,
@@ -50,11 +50,12 @@ void pvz_clamp_config(GameConfig *config) {
 	config->rows = clamp_int(config->rows, 1, PVZ_MAX_ROWS);
 	config->cols = clamp_int(config->cols, 3, PVZ_MAX_COLS);
 	config->tile_size = clamp_int(config->tile_size, 32, 144);
-	config->board_x_resolution = clamp_int(config->board_x_resolution, config->cols, 512);
-	config->board_y_resolution = clamp_int(config->board_y_resolution, config->rows, 512);
+	config->board_x_resolution = clamp_int(config->board_x_resolution, config->cols, PVZ_MAX_BOARD_WIDTH);
+	config->board_y_resolution = clamp_int(config->board_y_resolution, config->rows, PVZ_MAX_BOARD_HEIGHT);
+	config->hud_x_resolution = clamp_int(config->hud_x_resolution, 1, PVZ_MAX_HUD_WIDTH);
+	config->hud_y_resolution = clamp_int(config->hud_y_resolution, 1, PVZ_MAX_HUD_HEIGHT);
 	config->margin = clamp_int(config->margin, 8, 48);
-	config->hud_height = clamp_int(config->hud_height, 72, 180);
-	config->footer_height = clamp_int(config->footer_height, 48, 120);
+
 	if (config->fixed_dt <= 0.0f) {
 		config->fixed_dt = 1.0f / 30.0f;
 	}
@@ -64,22 +65,17 @@ DisplaySettings pvz_make_display_settings(const GameConfig *config) {
 	DisplaySettings metrics = {0};
 
 	metrics.board_rect.x = config->margin;
-	metrics.board_rect.y = config->margin + config->hud_height + config->margin;
+	metrics.board_rect.y = config->margin;
 	metrics.board_rect.w = config->cols * config->tile_size;
 	metrics.board_rect.h = config->rows * config->tile_size;
 
 	metrics.hud_rect.x = config->margin;
-	metrics.hud_rect.y = config->margin;
-	metrics.hud_rect.w = metrics.board_rect.w;
+	metrics.hud_rect.y = config->margin + metrics.board_rect.h + config->margin;
+	metrics.hud_rect.w = config->hud_width;
 	metrics.hud_rect.h = config->hud_height;
 
-	metrics.footer_rect.x = config->margin;
-	metrics.footer_rect.y = metrics.board_rect.y + metrics.board_rect.h + config->margin;
-	metrics.footer_rect.w = metrics.board_rect.w;
-	metrics.footer_rect.h = config->footer_height;
-
 	metrics.window_width = metrics.board_rect.w + config->margin * 2;
-	metrics.window_height = metrics.footer_rect.y + metrics.footer_rect.h + config->margin;
+	metrics.window_height = metrics.board_rect.h + metrics.hud_rect.h + config->margin * 3;
 
 	return metrics;
 }

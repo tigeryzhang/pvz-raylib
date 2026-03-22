@@ -37,8 +37,8 @@ typedef struct {
 	int hud_x_resolution;
 	int hud_y_resolution;
 	int margin;
+	int hud_width;
 	int hud_height;
-	int footer_height;
 	int starting_sun;
 	int sunflower_cost;
 	int peashooter_cost;
@@ -71,7 +71,6 @@ typedef struct {
 	int window_height;
 	IntRect hud_rect;
 	IntRect board_rect;
-	IntRect footer_rect;
 } DisplaySettings;
 
 GameConfig pvz_make_default_config(void);

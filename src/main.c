@@ -14,6 +14,9 @@ static const int CONFIGURED_TILE_SIZE = 88;
 static const int CONFIGURED_BOARD_RESOLUTION_WIDTH = 128;
 static const int CONFIGURED_BOARD_RESOLUTION_HEIGHT = 64;
 
+static const int CONFIGURED_HUD_RESOLUTION_WIDTH = 480;
+static const int CONFIGURED_HUD_RESOLUTION_HEIGHT = 320;
+
 static void apply_startup_config(GameConfig *config) {
 	if (!config) {
 		return;
@@ -24,6 +27,8 @@ static void apply_startup_config(GameConfig *config) {
 	config->tile_size = CONFIGURED_TILE_SIZE;
 	config->board_x_resolution = CONFIGURED_BOARD_RESOLUTION_WIDTH;
 	config->board_y_resolution = CONFIGURED_BOARD_RESOLUTION_HEIGHT;
+	config->hud_x_resolution = CONFIGURED_HUD_RESOLUTION_WIDTH;
+	config->hud_y_resolution = CONFIGURED_HUD_RESOLUTION_HEIGHT;
 }
 
 static void print_usage(const char *argv0) { printf("Usage: %s [--test]\n", argv0); }
