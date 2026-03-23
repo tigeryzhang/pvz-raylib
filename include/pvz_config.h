@@ -31,41 +31,61 @@ typedef struct {
 } IntRect;
 
 typedef struct {
+	// Board layout
 	int rows;
 	int cols;
 	int tile_size;
+
+	// Window layout
+	int margin;
+	int hud_width;
+	int hud_height;
+
+	// Render target resolutions
 	int board_x_resolution;
 	int board_y_resolution;
 	int hud_x_resolution;
 	int hud_y_resolution;
-	int margin;
-	int hud_width;
-	int hud_height;
+
+	// Game setup
 	int starting_sun;
+	bool start_with_demo_layout;
+
+	// Seed packets
 	int sunflower_cost;
+	int sunflower_seed_cooldown;
 	int peashooter_cost;
+	int peashooter_seed_cooldown;
 	int wallnut_cost;
+	int wallnut_seed_cooldown;
+
+	// Plant stats
 	int sunflower_health;
 	int peashooter_health;
 	int wallnut_health;
+	int pea_damage;
+
+	// Zombie stats
 	int zombie_health;
 	int cone_health;
 	int bucket_health;
 	int cone_armor;
 	int bucket_armor;
 	int zombie_bite_damage;
-	int pea_damage;
+
+	// Timing
 	float fixed_dt;
 	float zombie_spawn_interval;
 	float zombie_attack_interval;
 	float sunflower_sun_interval;
 	float sunflower_collect_delay;
 	float peashooter_fire_interval;
+
+	// Movement
 	float pea_speed_cells_per_second;
 	float zombie_speed_regular;
 	float zombie_speed_cone;
 	float zombie_speed_bucket;
-	bool start_with_demo_layout;
 } GameConfig;
 
 typedef struct {

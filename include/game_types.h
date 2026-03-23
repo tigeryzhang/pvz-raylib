@@ -2,6 +2,8 @@
 
 #include <stdbool.h>
 
+#define PVZ_NUM_PLANT_TYPES 3
+
 typedef enum {
 	PLANT_NONE = 0,
 	PLANT_SUNFLOWER,

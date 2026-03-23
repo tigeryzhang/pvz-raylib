@@ -45,6 +45,7 @@ typedef struct {
 	const GameConfig *config;
 	int sun_count;
 	PlantType selected_plant;
+	float seed_cooldowns[PVZ_NUM_PLANT_TYPES];
 	GameStatus status;
 	bool paused;
 	GameCommandResult last_command_result;
