@@ -341,6 +341,21 @@ static void draw_sun(RenderView *view, RenderTarget target, IntRect rect) {
 			  RENDER_PALETTE_HIGHLIGHT, 0);
 }
 
+static float get_seed_cooldown(const RenderView *view, PlantType type) {
+	// TODO: Same problem as other instances of this seed function. Find way to make less fragile
+	switch (type) {
+	case PLANT_SUNFLOWER:
+		return view->seed_cooldowns[0];
+	case PLANT_PEASHOOTER:
+		return view->seed_cooldowns[1];
+	case PLANT_WALLNUT:
+		return view->seed_cooldowns[2];
+	case PLANT_NONE:
+	default:
+		return 0;
+	}
+}
+
 static void draw_card(RenderView *view, const GameConfig *config, int index, PlantType type) {
 	char buffer[16];
 
@@ -352,9 +367,14 @@ static void draw_card(RenderView *view, const GameConfig *config, int index, Pla
 	const IntRect rect = {.x = x, .y = 34, .w = width, .h = 200};
 	const bool selected = view->selected_plant == type;
 	const RenderPalette fill = selected ? RENDER_PALETTE_TILE_LIGHT : RENDER_PALETTE_TILE_DARK;
+	const RenderPalette cooldown = RENDER_PALETTE_BG;
 	const RenderPalette outline = RENDER_PALETTE_TEXT;
 
-	draw_rect(view, RENDER_TARGET_HUD, rect, fill, 0);
+	const float cooldown_percentage = get_seed_cooldown(view, type) / pvz_plant_seed_cooldown(config, type);
+	const int fill_height = rect.h * (1 - cooldown_percentage);
+	draw_rect(view, RENDER_TARGET_HUD, (IntRect){.x = rect.x, .y = rect.y, .w = rect.w, .h = fill_height}, fill, 0);
+	draw_rect(view, RENDER_TARGET_HUD,
+			  (IntRect){.x = rect.x, .y = rect.y + fill_height, .w = rect.w, .h = rect.h - fill_height}, cooldown, 0);
 	draw_rect(view, RENDER_TARGET_HUD, rect, outline, 2);
 
 	// Draw plant icon
@@ -393,6 +413,7 @@ void presentation_build_play_view(RenderView *view, const GameState *game, Rende
 	render_view_begin(view, game->config->board_x_resolution, game->config->board_y_resolution,
 					  game->config->hud_x_resolution, game->config->hud_y_resolution, RENDER_PALETTE_BG);
 	view->selected_plant = game->selected_plant;
+	memcpy(view->seed_cooldowns, game->seed_cooldowns, sizeof(game->seed_cooldowns));
 	view->sun_count = game->sun_count;
 	view->paused = game->paused;
 	view->game_status = game->status;

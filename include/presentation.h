@@ -47,6 +47,7 @@ typedef struct {
 	int hud_height;
 	uint8_t hud_pixels[PVZ_MAX_HUD_PIXELS];
 	PlantType selected_plant;
+	float seed_cooldowns[3];
 	int sun_count;
 	bool paused;
 	GameStatus game_status;

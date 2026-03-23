@@ -1,4 +1,6 @@
 #include "game.h"
+#include "game_types.h"
+#include "pvz_config.h"
 
 #include <math.h>
 #include <string.h>
@@ -73,17 +75,34 @@ static int get_plant_health(const GameState *state, PlantType plant_type) {
 	}
 }
 
-int game_get_plant_cost(const GameState *state, PlantType plant_type) {
+static float get_plant_seed_cooldown(const GameState *state, PlantType plant_type) {
+	// TODO: Maybe change semantic coupling to indices so we can change out different packets
 	switch (plant_type) {
 	case PLANT_SUNFLOWER:
-		return state->config->sunflower_cost;
+		return state->seed_cooldowns[0];
 	case PLANT_PEASHOOTER:
-		return state->config->peashooter_cost;
+		return state->seed_cooldowns[1];
 	case PLANT_WALLNUT:
-		return state->config->wallnut_cost;
+		return state->seed_cooldowns[2];
 	case PLANT_NONE:
 	default:
 		return 0;
+	}
+}
+
+static void activate_plant_seed_cooldown(GameState *state, PlantType plant_type) {
+	switch (plant_type) {
+	case PLANT_SUNFLOWER:
+		state->seed_cooldowns[0] = pvz_plant_seed_cooldown(state->config, plant_type);
+		break;
+	case PLANT_PEASHOOTER:
+		state->seed_cooldowns[1] = pvz_plant_seed_cooldown(state->config, plant_type);
+		break;
+	case PLANT_WALLNUT:
+		state->seed_cooldowns[2] = pvz_plant_seed_cooldown(state->config, plant_type);
+		break;
+	case PLANT_NONE:
+		break;
 	}
 }
 
@@ -177,7 +196,7 @@ static bool place_plant_internal(GameState *state, PlantType plant_type, BoardCo
 		return false;
 	}
 
-	const int cost = game_get_plant_cost(state, plant_type);
+	const int cost = pvz_plant_cost(state->config, plant_type);
 	if (charge_cost) {
 		state->sun_count -= cost;
 	}
@@ -385,6 +404,10 @@ void game_reset(GameState *state) {
 	state->spawn_timer = 1.3f;
 	state->wave_cursor = 0;
 
+	for (int i = 0; i < PVZ_NUM_PLANT_TYPES; ++i) {
+		state->seed_cooldowns[i] = 1;
+	}
+
 	if (state->config->start_with_demo_layout) {
 		spawn_demo_plants(state);
 	}
@@ -414,12 +437,17 @@ GameCommandResult game_apply_command(GameState *state, GameCommand command) {
 			result = GAME_COMMAND_RESULT_OCCUPIED;
 			break;
 		}
-		const int cost = game_get_plant_cost(state, plant_type);
+		const int cost = pvz_plant_cost(state->config, plant_type);
 		if (state->sun_count < cost) {
 			result = GAME_COMMAND_RESULT_NOT_ENOUGH_SUN;
 			break;
 		}
+		if (get_plant_seed_cooldown(state, plant_type) > 0) {
+			result = GAME_COMMAND_RESULT_PLANT_ON_COOLDOWN;
+			break;
+		}
 		if (place_plant_internal(state, plant_type, command.coord, true)) {
+			activate_plant_seed_cooldown(state, plant_type);
 			result = GAME_COMMAND_RESULT_OK;
 		}
 		break;
@@ -465,21 +493,28 @@ bool game_has_active_zombies(const GameState *state) {
 	return false;
 }
 
-void game_step(GameState *state, float dt) {
+void game_step(GameState *state, float delta) {
 	if (state->paused || state->status != GAME_STATUS_RUNNING) {
 		return;
 	}
 
-	state->spawn_timer -= dt;
+	state->spawn_timer -= delta;
 	if (state->spawn_timer <= 0.0f && state->wave_cursor < zombie_total_count()) {
 		spawn_next_zombie(state);
 		state->spawn_timer += state->config->zombie_spawn_interval;
 	}
 
-	step_suns(state, dt);
-	step_plants(state, dt);
-	step_projectiles(state, dt);
-	step_zombies(state, dt);
+	step_suns(state, delta);
+	step_plants(state, delta);
+	step_projectiles(state, delta);
+	step_zombies(state, delta);
+
+	for (int i = 0; i < PVZ_NUM_PLANT_TYPES; ++i) {
+		state->seed_cooldowns[i] -= delta;
+		if (state->seed_cooldowns[i] < 0) {
+			state->seed_cooldowns[i] = 0;
+		}
+	}
 
 	if (state->status == GAME_STATUS_RUNNING && state->wave_cursor >= zombie_total_count() &&
 		!game_has_active_zombies(state)) {

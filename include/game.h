@@ -61,7 +61,6 @@ typedef struct {
 void game_init(GameState *state, const GameConfig *config);
 void game_reset(GameState *state);
 GameCommandResult game_apply_command(GameState *state, GameCommand command);
-void game_step(GameState *state, float dt);
+void game_step(GameState *state, float delta);
 bool game_coord_in_bounds(const GameState *state, BoardCoord coord);
-int game_get_plant_cost(const GameState *state, PlantType plant_type);
 bool game_has_active_zombies(const GameState *state);

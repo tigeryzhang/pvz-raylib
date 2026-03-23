@@ -16,11 +16,11 @@ GameConfig pvz_make_default_config(void) {
 		.starting_sun = 200,
 		.start_with_demo_layout = true,
 		.sunflower_cost = 50,
-		.sunflower_seed_cooldown = 0,
+		.sunflower_seed_cooldown = 2,
 		.peashooter_cost = 100,
-		.peashooter_seed_cooldown = 0,
+		.peashooter_seed_cooldown = 2,
 		.wallnut_cost = 50,
-		.wallnut_seed_cooldown = 0,
+		.wallnut_seed_cooldown = 5,
 		.sunflower_health = 55,
 		.peashooter_health = 70,
 		.wallnut_health = 260,
@@ -100,6 +100,20 @@ int pvz_plant_cost(const GameConfig *config, PlantType type) {
 		return config->peashooter_cost;
 	case PLANT_WALLNUT:
 		return config->wallnut_cost;
+	case PLANT_NONE:
+	default:
+		return 0;
+	}
+}
+
+int pvz_plant_seed_cooldown(const GameConfig *config, PlantType type) {
+	switch (type) {
+	case PLANT_SUNFLOWER:
+		return config->sunflower_seed_cooldown;
+	case PLANT_PEASHOOTER:
+		return config->peashooter_seed_cooldown;
+	case PLANT_WALLNUT:
+		return config->wallnut_seed_cooldown;
 	case PLANT_NONE:
 	default:
 		return 0;
