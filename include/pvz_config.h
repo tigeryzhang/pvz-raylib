@@ -100,4 +100,4 @@ void pvz_clamp_config(GameConfig *config);
 DisplaySettings pvz_make_display_settings(const GameConfig *config);
 bool pvz_rect_contains(IntRect rect, int x, int y);
 
-int plant_cost(const GameConfig *config, PlantType type);
+int pvz_plant_cost(const GameConfig *config, PlantType type);
