@@ -36,11 +36,6 @@ typedef struct {
 	int cols;
 	int tile_size;
 
-	// Window layout
-	int margin;
-	int hud_width;
-	int hud_height;
-
 	// Render target resolutions
 	int board_x_resolution;
 	int board_y_resolution;
@@ -88,16 +83,8 @@ typedef struct {
 	float zombie_speed_bucket;
 } GameConfig;
 
-typedef struct {
-	int window_width;
-	int window_height;
-	IntRect hud_rect;
-	IntRect board_rect;
-} DisplaySettings;
-
 GameConfig pvz_make_default_config(void);
 void pvz_clamp_config(GameConfig *config);
-DisplaySettings pvz_make_display_settings(const GameConfig *config);
 bool pvz_rect_contains(IntRect rect, int x, int y);
 
 int pvz_plant_cost(const GameConfig *config, PlantType type);

@@ -127,6 +127,7 @@ static void set_pixel(RenderView *view, RenderTarget target, int x, int y, Rende
 }
 
 static void draw_rect(RenderView *view, RenderTarget target, IntRect rect, RenderPalette palette, int thickness) {
+    // TODO: Use DMA-2D (Chrom-Art)
 	if (!view || rect.w <= 0 || rect.h <= 0) {
 		return;
 	}

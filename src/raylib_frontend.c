@@ -7,6 +7,7 @@
 #include "raylib.h"
 
 typedef struct {
+	DisplaySettings display_settings;
 	RenderTexture2D board_target;
 	int board_width;
 	int board_height;
@@ -17,6 +18,28 @@ typedef struct {
 } FrontendState;
 
 static FrontendState frontend_state = {0};
+
+DisplaySettings set_display_settings(const GameConfig *config, int tile_size, int margin, int hud_width,
+									 int hud_height) {
+	DisplaySettings display_settings = {0};
+
+	display_settings.board_rect.x = margin;
+	display_settings.board_rect.y = margin;
+	display_settings.board_rect.w = config->cols * tile_size;
+	display_settings.board_rect.h = config->rows * tile_size;
+
+	display_settings.hud_rect.x = margin;
+	display_settings.hud_rect.y = margin + display_settings.board_rect.h + margin;
+	display_settings.hud_rect.w = hud_width;
+	display_settings.hud_rect.h = hud_height;
+
+	display_settings.window_width = display_settings.board_rect.w + margin * 2;
+	display_settings.window_height = display_settings.board_rect.h + display_settings.hud_rect.h + margin * 3;
+
+	frontend_state.display_settings = display_settings;
+
+	return display_settings;
+}
 
 static Color palette_color(RenderPalette palette) {
 	switch (palette) {
@@ -90,7 +113,7 @@ static void ensure_render_targets(const AppContext *app) {
 
 static BoardCoord screen_to_board(const AppContext *app, int x, int y) {
 	BoardCoord coord = {-1, -1};
-	const IntRect board = app->display_settings.board_rect;
+	const IntRect board = frontend_state.display_settings.board_rect;
 	if (!pvz_rect_contains(board, x, y)) {
 		return coord;
 	}
@@ -177,72 +200,6 @@ static void draw_framebuffer_to_target(const RenderView *view, RenderTarget targ
 	}
 }
 
-// static void draw_card(const AppContext *app, const RenderView *view, int index, PlantType type) {
-// 	char buffer[16];
-// 	const IntRect rect = pvz_get_card_rect(&app->display_settings, index);
-// 	const bool selected = view->selected_plant == type;
-// 	const Color fill = palette_color(selected ? RENDER_PALETTE_HIGHLIGHT : RENDER_PALETTE_TILE_DARK);
-// 	const Color outline = palette_color(RENDER_PALETTE_TEXT);
-// 	const Color icon = palette_color(plant_card_palette(type));
-
-// 	DrawRectangle(rect.x, rect.y, rect.w, rect.h, fill);
-// 	DrawRectangleLinesEx((Rectangle){(float)rect.x, (float)rect.y, (float)rect.w, (float)rect.h},
-// 						 selected ? 4.0f : 2.0f, outline);
-// 	DrawRectangle(rect.x + 12, rect.y + 12, 28, 28, icon);
-
-// 	// Plant index
-// 	snprintf(buffer, sizeof(buffer), "%d", index + 1);
-// 	draw_text_3x5(buffer, rect.x + rect.w - 28, rect.y + 12, 4, outline);
-// 	draw_text_3x5(plant_name(type), rect.x + 12, rect.y + 52, 3, outline);
-
-// 	// Plant cost
-// 	snprintf(buffer, sizeof(buffer), "%d", plant_cost(app, type));
-// 	draw_text_3x5(buffer, rect.x + 12, rect.y + rect.h - 28, 3, palette_color(RENDER_PALETTE_SUN));
-// }
-
-// static void draw_play_hud(const AppContext *app, const RenderView *view) {
-// 	char buffer[32];
-// 	const IntRect hud = app->display_settings.hud_rect;
-// 	const IntRect footer = app->display_settings.footer_rect;
-
-// 	DrawRectangle(hud.x, hud.y, hud.w, hud.h, palette_color(RENDER_PALETTE_PANEL));
-// 	DrawRectangle(footer.x, footer.y, footer.w, footer.h, palette_color(RENDER_PALETTE_PANEL));
-
-// 	draw_card(app, view, 0, PLANT_SUNFLOWER);
-// 	draw_card(app, view, 1, PLANT_PEASHOOTER);
-// 	draw_card(app, view, 2, PLANT_WALLNUT);
-
-// 	// Sun
-// 	snprintf(buffer, sizeof(buffer), "SUN %d", view->sun_count);
-// 	int sun_text_width = text_width_3x5(buffer, 3);
-// 	draw_text_3x5(buffer, footer.x + footer.w - 14 - sun_text_width, footer.y + 14, 3,
-// 				  palette_color(RENDER_PALETTE_TEXT));
-
-// 	// Info
-// 	draw_text_3x5("SPACE PAUSE", footer.x + 14, footer.y + 14, 3, palette_color(RENDER_PALETTE_TEXT));
-// 	draw_text_3x5("R RESET", footer.x + 14, footer.y + 42, 3, palette_color(RENDER_PALETTE_TEXT));
-
-// 	if (view->status != RENDER_STATUS_NONE && view->status != RENDER_STATUS_PLACEHOLDER && !view->paused &&
-// 		view->game_status == GAME_STATUS_RUNNING) {
-// 		const char *text = status_text(view);
-// 		if (text) {
-// 			const int width = text_width_3x5(text, 3);
-// 			draw_text_3x5(text, footer.x + footer.w - width - 14, footer.y + 42, 3,
-// 						  palette_color(status_palette(view)));
-// 		}
-// 	}
-// }
-
-// static void draw_placeholder_hud(const AppContext *app) {
-// 	const IntRect hud = app->display_settings.hud_rect;
-// 	const IntRect footer = app->display_settings.footer_rect;
-
-// 	DrawRectangle(hud.x, hud.y, hud.w, hud.h, palette_color(RENDER_PALETTE_PANEL));
-// 	DrawRectangle(footer.x, footer.y, footer.w, footer.h, palette_color(RENDER_PALETTE_PANEL));
-// 	draw_text_3x5("PLACEHOLDER", hud.x + 16, hud.y + 18, 4, palette_color(RENDER_PALETTE_TEXT));
-// 	draw_text_3x5("F1 PLAY", footer.x + 14, footer.y + 26, 4, palette_color(RENDER_PALETTE_HIGHLIGHT));
-// }
-
 void raylib_poll_input(const AppContext *app, InputFrame *input) {
 	input_frame_reset(input);
 
@@ -317,14 +274,14 @@ void raylib_render_view(AppContext *app, const RenderView *view) {
 		EndTextureMode();
 
 		// Draw textures to screen
-		const IntRect board_rect = app->display_settings.board_rect;
+		const IntRect board_rect = frontend_state.display_settings.board_rect;
 		const Rectangle board_src = {0.0f, 0.0f, (float)frontend_state.board_width,
 									 (float)-frontend_state.board_height};
 		const Rectangle board_dst = {(float)board_rect.x, (float)board_rect.y, (float)board_rect.w,
 									 (float)board_rect.h};
 		DrawTexturePro(frontend_state.board_target.texture, board_src, board_dst, (Vector2){0}, 0.0f, WHITE);
 
-		const IntRect hud_rect = app->display_settings.hud_rect;
+		const IntRect hud_rect = frontend_state.display_settings.hud_rect;
 		const Rectangle hud_src = {0.0f, 0.0f, (float)frontend_state.hud_width, (float)-frontend_state.hud_height};
 		const Rectangle hud_dst = {(float)hud_rect.x, (float)hud_rect.y, (float)hud_rect.w, (float)hud_rect.h};
 		DrawTexturePro(frontend_state.hud_target.texture, hud_src, hud_dst, (Vector2){0}, 0.0f, WHITE);

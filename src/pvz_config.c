@@ -6,9 +6,6 @@ GameConfig pvz_make_default_config(void) {
 		.rows = 4,
 		.cols = 7,
 		.tile_size = 16,
-		.margin = 12,
-		.hud_width = 480,
-		.hud_height = 320,
 		.board_x_resolution = 128,
 		.board_y_resolution = 64,
 		.hud_x_resolution = 480,
@@ -53,9 +50,6 @@ void pvz_clamp_config(GameConfig *config) {
 	config->rows = clamp_int(config->rows, 1, PVZ_MAX_ROWS);
 	config->cols = clamp_int(config->cols, 3, PVZ_MAX_COLS);
 	config->tile_size = clamp_int(config->tile_size, 32, 144);
-	config->margin = clamp_int(config->margin, 8, 48);
-	config->hud_width = clamp_int(config->hud_width, 1, PVZ_MAX_HUD_WIDTH);
-	config->hud_height = clamp_int(config->hud_height, 1, PVZ_MAX_HUD_HEIGHT);
 	config->board_x_resolution = clamp_int(config->board_x_resolution, config->cols, PVZ_MAX_BOARD_WIDTH);
 	config->board_y_resolution = clamp_int(config->board_y_resolution, config->rows, PVZ_MAX_BOARD_HEIGHT);
 	config->hud_x_resolution = clamp_int(config->hud_x_resolution, 1, PVZ_MAX_HUD_WIDTH);
@@ -67,25 +61,6 @@ void pvz_clamp_config(GameConfig *config) {
 	if (config->fixed_dt <= 0.0f) {
 		config->fixed_dt = 1.0f / 30.0f;
 	}
-}
-
-DisplaySettings pvz_make_display_settings(const GameConfig *config) {
-	DisplaySettings metrics = {0};
-
-	metrics.board_rect.x = config->margin;
-	metrics.board_rect.y = config->margin;
-	metrics.board_rect.w = config->cols * config->tile_size;
-	metrics.board_rect.h = config->rows * config->tile_size;
-
-	metrics.hud_rect.x = config->margin;
-	metrics.hud_rect.y = config->margin + metrics.board_rect.h + config->margin;
-	metrics.hud_rect.w = config->hud_width;
-	metrics.hud_rect.h = config->hud_height;
-
-	metrics.window_width = metrics.board_rect.w + config->margin * 2;
-	metrics.window_height = metrics.board_rect.h + metrics.hud_rect.h + config->margin * 3;
-
-	return metrics;
 }
 
 bool pvz_rect_contains(IntRect rect, int x, int y) {

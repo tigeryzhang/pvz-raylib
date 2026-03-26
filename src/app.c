@@ -43,7 +43,6 @@ void app_init(AppContext *app, const GameConfig *config) {
 	memset(app, 0, sizeof(*app));
 	app->config = *config;
 	pvz_clamp_config(&app->config);
-	app->display_settings = pvz_make_display_settings(&app->config);
 
 	play_scene_configure(&app->play_scene, &app->play_state);
 	placeholder_scene_configure(&app->placeholder_scene, &app->placeholder_state);

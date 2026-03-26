@@ -9,7 +9,6 @@
 
 static const int CONFIGURED_ROWS = 4;
 static const int CONFIGURED_COLS = 7;
-static const int CONFIGURED_TILE_SIZE = 88;
 
 static const int CONFIGURED_BOARD_RESOLUTION_WIDTH = 128;
 static const int CONFIGURED_BOARD_RESOLUTION_HEIGHT = 64;
@@ -24,7 +23,6 @@ static void apply_startup_config(GameConfig *config) {
 
 	config->rows = CONFIGURED_ROWS;
 	config->cols = CONFIGURED_COLS;
-	config->tile_size = CONFIGURED_TILE_SIZE;
 	config->board_x_resolution = CONFIGURED_BOARD_RESOLUTION_WIDTH;
 	config->board_y_resolution = CONFIGURED_BOARD_RESOLUTION_HEIGHT;
 	config->hud_x_resolution = CONFIGURED_HUD_RESOLUTION_WIDTH;
@@ -52,9 +50,11 @@ int main(int argc, char **argv) {
 	}
 
 	AppContext app;
+	DisplaySettings display_settings = set_display_settings(&config, 88, 12, 480, 320);
+
 	app_init(&app, &config);
 	SetConfigFlags(FLAG_VSYNC_HINT | FLAG_WINDOW_HIGHDPI);
-	InitWindow(app.display_settings.window_width, app.display_settings.window_height, "pvz-raylib mockup");
+	InitWindow(display_settings.window_width, display_settings.window_height, "pvz-raylib mockup");
 	SetTargetFPS(60);
 	app.render_view = raylib_render_view;
 

@@ -16,7 +16,6 @@ typedef struct {
 
 typedef struct AppContext {
 	GameConfig config;
-	DisplaySettings display_settings;
 	bool quit_requested;
 	SceneId active_scene_id;
 	Scene *active_scene;
