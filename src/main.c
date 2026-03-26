@@ -5,13 +5,12 @@
 #include "app.h"
 #include "raylib.h"
 #include "raylib_frontend.h"
-#include "tests.h"
 
 static const int CONFIGURED_ROWS = 4;
 static const int CONFIGURED_COLS = 7;
 
-static const int CONFIGURED_BOARD_RESOLUTION_WIDTH = 128;
-static const int CONFIGURED_BOARD_RESOLUTION_HEIGHT = 64;
+static const int CONFIGURED_BOARD_RESOLUTION_WIDTH = 64;
+static const int CONFIGURED_BOARD_RESOLUTION_HEIGHT = 32;
 
 static const int CONFIGURED_HUD_RESOLUTION_WIDTH = 480;
 static const int CONFIGURED_HUD_RESOLUTION_HEIGHT = 320;
@@ -29,25 +28,10 @@ static void apply_startup_config(GameConfig *config) {
 	config->hud_y_resolution = CONFIGURED_HUD_RESOLUTION_HEIGHT;
 }
 
-static void print_usage(const char *argv0) { printf("Usage: %s [--test]\n", argv0); }
-
 int main(int argc, char **argv) {
 	GameConfig config = pvz_make_default_config();
 	bool run_tests = false;
 	apply_startup_config(&config);
-
-	for (int i = 1; i < argc; ++i) {
-		if (strcmp(argv[i], "--test") == 0) {
-			run_tests = true;
-			continue;
-		}
-		print_usage(argv[0]);
-		return 1;
-	}
-
-	if (run_tests) {
-		return run_all_tests();
-	}
 
 	AppContext app;
 	DisplaySettings display_settings = set_display_settings(&config, 88, 12, 480, 320);
