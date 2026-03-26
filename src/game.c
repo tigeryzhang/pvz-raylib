@@ -272,9 +272,7 @@ static const PvzLevelDef *current_level_def(const GameState *state) {
 	return &builtin_levels[clamp_level_index(state->wave_runtime.level_index)];
 }
 
-static uint8_t current_wave_weight(const PvzWaveDef *wave) {
-	return wave->weight > 0 ? wave->weight : 1;
-}
+static uint8_t current_wave_weight(const PvzWaveDef *wave) { return wave->weight > 0 ? wave->weight : 1; }
 
 static uint16_t seconds_to_runtime_ticks(const GameState *state, float seconds) {
 	const float fallback_dt = 1.0f / 30.0f;
@@ -806,7 +804,10 @@ static void step_plants(GameState *state, float dt) {
 		}
 
 		Plant *plant = &state->plants[i];
-		plant->action_timer -= dt;
+		if (plant->action_timer > 0) {
+			plant->action_timer -= dt;
+		}
+
 		if (plant->type == PLANT_SUNFLOWER) {
 			if (plant->action_timer <= 0.0f) {
 				spawn_sun(state, plant->coord);
@@ -968,7 +969,8 @@ void game_get_wave_status(const GameState *state, GameWaveStatus *status) {
 	status->wave_count = level->wave_count;
 	if (runtime->level_total_weight > 0) {
 		float progress_weight = (float)runtime->completed_wave_weight;
-		if (runtime->wave_started && runtime->wave_index < level->wave_count && runtime->current_wave_spawns_total > 0) {
+		if (runtime->wave_started && runtime->wave_index < level->wave_count &&
+			runtime->current_wave_spawns_total > 0) {
 			const PvzWaveDef *wave = &level->waves[runtime->wave_index];
 			const float spawn_progress =
 				(float)runtime->current_wave_spawns_spawned / (float)runtime->current_wave_spawns_total;
@@ -998,8 +1000,7 @@ void game_get_wave_status(const GameState *state, GameWaveStatus *status) {
 		const PvzWaveDef *wave = &level->waves[i];
 		if ((wave->flags & PVZ_WAVE_FLAG_MAJOR) != 0 && status->flag_marker_count < PVZ_MAX_WAVE_FLAG_MARKERS) {
 			const uint32_t scaled = (uint32_t)cumulative_weight * 255u;
-			status->flag_marker_progress[status->flag_marker_count++] =
-				(uint8_t)(scaled / runtime->level_total_weight);
+			status->flag_marker_progress[status->flag_marker_count++] = (uint8_t)(scaled / runtime->level_total_weight);
 		}
 		cumulative_weight = (uint16_t)(cumulative_weight + current_wave_weight(wave));
 	}
