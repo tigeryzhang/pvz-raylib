@@ -29,7 +29,7 @@ typedef struct {
 	float start_delay_sec;
 	uint8_t drain_threshold;
 	uint8_t flags;
-	uint8_t progress_weight;
+	uint8_t weight;
 } PvzWaveDef;
 
 typedef struct {
@@ -61,8 +61,10 @@ typedef struct {
 	uint16_t ticks_until_wave;
 	uint16_t ticks_until_spawn;
 	uint16_t warning_ticks_remaining;
-	uint16_t level_progress_units_done;
-	uint16_t level_progress_units_total;
+	uint16_t completed_wave_weight;
+	uint16_t level_total_weight;
+	uint16_t current_wave_spawns_spawned;
+	uint16_t current_wave_spawns_total;
 } GameWaveRuntime;
 
 typedef struct {

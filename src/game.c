@@ -59,19 +59,19 @@ static const PvzWaveDef level_0_waves[] = {
 	 .start_delay_sec = 0.0f,
 	 .drain_threshold = 0,
 	 .flags = PVZ_WAVE_FLAG_NONE,
-	 .progress_weight = 3},
+	 .weight = 3},
 	{.groups = level_0_wave_1_groups,
 	 .group_count = 2,
 	 .start_delay_sec = 3.0f,
 	 .drain_threshold = 1,
 	 .flags = PVZ_WAVE_FLAG_NONE,
-	 .progress_weight = 4},
+	 .weight = 4},
 	{.groups = level_0_wave_2_groups,
 	 .group_count = 3,
 	 .start_delay_sec = 4.0f,
 	 .drain_threshold = 1,
 	 .flags = PVZ_WAVE_FLAG_MAJOR,
-	 .progress_weight = 5},
+	 .weight = 5},
 };
 
 static const PvzSpawnGroup level_1_wave_0_groups[] = {
@@ -149,31 +149,31 @@ static const PvzWaveDef level_1_waves[] = {
 	 .start_delay_sec = 0.0f,
 	 .drain_threshold = 0,
 	 .flags = PVZ_WAVE_FLAG_NONE,
-	 .progress_weight = 3},
+	 .weight = 3},
 	{.groups = level_1_wave_1_groups,
 	 .group_count = 2,
 	 .start_delay_sec = 2.5f,
 	 .drain_threshold = 2,
 	 .flags = PVZ_WAVE_FLAG_NONE,
-	 .progress_weight = 4},
+	 .weight = 4},
 	{.groups = level_1_wave_2_groups,
 	 .group_count = 2,
 	 .start_delay_sec = 3.0f,
 	 .drain_threshold = 2,
 	 .flags = PVZ_WAVE_FLAG_MAJOR,
-	 .progress_weight = 5},
+	 .weight = 5},
 	{.groups = level_1_wave_3_groups,
 	 .group_count = 2,
 	 .start_delay_sec = 2.5f,
 	 .drain_threshold = 2,
 	 .flags = PVZ_WAVE_FLAG_NONE,
-	 .progress_weight = 4},
+	 .weight = 4},
 	{.groups = level_1_wave_4_groups,
 	 .group_count = 2,
 	 .start_delay_sec = 3.0f,
 	 .drain_threshold = 1,
 	 .flags = PVZ_WAVE_FLAG_MAJOR,
-	 .progress_weight = 6},
+	 .weight = 6},
 };
 
 static const PvzSpawnGroup level_2_wave_0_groups[] = {
@@ -236,25 +236,25 @@ static const PvzWaveDef level_2_waves[] = {
 	 .start_delay_sec = 0.0f,
 	 .drain_threshold = 0,
 	 .flags = PVZ_WAVE_FLAG_NONE,
-	 .progress_weight = 4},
+	 .weight = 4},
 	{.groups = level_2_wave_1_groups,
 	 .group_count = 2,
 	 .start_delay_sec = 3.5f,
 	 .drain_threshold = 2,
 	 .flags = PVZ_WAVE_FLAG_MAJOR,
-	 .progress_weight = 5},
+	 .weight = 5},
 	{.groups = level_2_wave_2_groups,
 	 .group_count = 1,
 	 .start_delay_sec = 4.0f,
 	 .drain_threshold = 1,
 	 .flags = PVZ_WAVE_FLAG_NONE,
-	 .progress_weight = 5},
+	 .weight = 5},
 	{.groups = level_2_wave_3_groups,
 	 .group_count = 2,
 	 .start_delay_sec = 4.0f,
 	 .drain_threshold = 1,
 	 .flags = PVZ_WAVE_FLAG_MAJOR,
-	 .progress_weight = 7},
+	 .weight = 7},
 };
 
 static const PvzLevelDef builtin_levels[] = {
@@ -273,7 +273,7 @@ static const PvzLevelDef *current_level_def(const GameState *state) {
 }
 
 static uint8_t current_wave_weight(const PvzWaveDef *wave) {
-	return wave->progress_weight > 0 ? wave->progress_weight : 1;
+	return wave->weight > 0 ? wave->weight : 1;
 }
 
 static uint16_t seconds_to_runtime_ticks(const GameState *state, float seconds) {
@@ -497,15 +497,10 @@ static uint16_t count_wave_spawns(const PvzWaveDef *wave) {
 	return total;
 }
 
-static uint16_t wave_total_units(const PvzWaveDef *wave) {
-	const uint16_t spawn_count = count_wave_spawns(wave);
-	return (uint16_t)((spawn_count + 1u) * current_wave_weight(wave));
-}
-
-static uint16_t level_total_units(const PvzLevelDef *level) {
+static uint16_t level_total_weight(const PvzLevelDef *level) {
 	uint16_t total = 0;
 	for (uint8_t i = 0; i < level->wave_count; ++i) {
-		total = (uint16_t)(total + wave_total_units(&level->waves[i]));
+		total = (uint16_t)(total + current_wave_weight(&level->waves[i]));
 	}
 	return total;
 }
@@ -647,12 +642,16 @@ static bool load_current_group(GameState *state) {
 
 static void begin_wave(GameState *state) {
 	GameWaveRuntime *runtime = &state->wave_runtime;
+	const PvzLevelDef *level = current_level_def(state);
+	const PvzWaveDef *wave = &level->waves[runtime->wave_index];
 	runtime->wave_started = true;
 	runtime->warning_active = false;
 	runtime->warning_ticks_remaining = 0;
 	runtime->group_index = 0;
 	runtime->spawns_left_in_group = 0;
 	runtime->ticks_until_spawn = 0;
+	runtime->current_wave_spawns_spawned = 0;
+	runtime->current_wave_spawns_total = count_wave_spawns(wave);
 	load_current_group(state);
 }
 
@@ -660,11 +659,10 @@ static void advance_to_next_wave(GameState *state) {
 	GameWaveRuntime *runtime = &state->wave_runtime;
 	const PvzLevelDef *level = current_level_def(state);
 
-	// Add to wave progress tracker
+	// Completed waves contribute their full weight to level progress.
 	if (runtime->wave_index < level->wave_count) {
 		const PvzWaveDef *wave = &level->waves[runtime->wave_index];
-		const uint16_t completion_weight = current_wave_weight(wave);
-		runtime->level_progress_units_done += completion_weight;
+		runtime->completed_wave_weight += current_wave_weight(wave);
 	}
 
 	runtime->wave_index++;
@@ -674,6 +672,8 @@ static void advance_to_next_wave(GameState *state) {
 	runtime->group_index = 0;
 	runtime->spawns_left_in_group = 0;
 	runtime->ticks_until_spawn = 0;
+	runtime->current_wave_spawns_spawned = 0;
+	runtime->current_wave_spawns_total = 0;
 
 	// Finished all waves
 	if (runtime->wave_index >= level->wave_count) {
@@ -759,7 +759,7 @@ static void step_wave_scheduler(GameState *state) {
 	}
 
 	runtime->spawns_left_in_group--;
-	runtime->level_progress_units_done += current_wave_weight(wave);
+	runtime->current_wave_spawns_spawned++;
 
 	if (runtime->spawns_left_in_group > 0) {
 		runtime->ticks_until_spawn = seconds_to_runtime_ticks(state, group->spawn_interval_sec);
@@ -917,7 +917,7 @@ void game_reset(GameState *state) {
 	clear_state_arrays(state);
 	memset(&state->wave_runtime, 0, sizeof(state->wave_runtime));
 	state->wave_runtime.level_index = level_index;
-	state->wave_runtime.level_progress_units_total = level_total_units(level);
+	state->wave_runtime.level_total_weight = level_total_weight(level);
 	state->wave_runtime.ticks_until_wave = seconds_to_runtime_ticks(state, level->opening_delay_sec);
 	state->wave_runtime.next_auto_lane = 0;
 
@@ -966,9 +966,15 @@ void game_get_wave_status(const GameState *state, GameWaveStatus *status) {
 	const GameWaveRuntime *runtime = &state->wave_runtime;
 
 	status->wave_count = level->wave_count;
-	if (runtime->level_progress_units_total > 0) {
-		status->level_progress_01 =
-			(float)runtime->level_progress_units_done / (float)runtime->level_progress_units_total;
+	if (runtime->level_total_weight > 0) {
+		float progress_weight = (float)runtime->completed_wave_weight;
+		if (runtime->wave_started && runtime->wave_index < level->wave_count && runtime->current_wave_spawns_total > 0) {
+			const PvzWaveDef *wave = &level->waves[runtime->wave_index];
+			const float spawn_progress =
+				(float)runtime->current_wave_spawns_spawned / (float)runtime->current_wave_spawns_total;
+			progress_weight += (float)current_wave_weight(wave) * spawn_progress;
+		}
+		status->level_progress_01 = progress_weight / (float)runtime->level_total_weight;
 		if (status->level_progress_01 > 1.0f) {
 			status->level_progress_01 = 1.0f;
 		}
@@ -983,19 +989,19 @@ void game_get_wave_status(const GameState *state, GameWaveStatus *status) {
 	status->current_wave_is_major =
 		level->wave_count > 0 && (level->waves[wave_index].flags & PVZ_WAVE_FLAG_MAJOR) != 0;
 
-	if (runtime->level_progress_units_total == 0) {
+	if (runtime->level_total_weight == 0) {
 		return;
 	}
 
-	uint16_t cumulative_units = 0;
+	uint16_t cumulative_weight = 0;
 	for (uint8_t i = 0; i < level->wave_count; ++i) {
 		const PvzWaveDef *wave = &level->waves[i];
 		if ((wave->flags & PVZ_WAVE_FLAG_MAJOR) != 0 && status->flag_marker_count < PVZ_MAX_WAVE_FLAG_MARKERS) {
-			const uint32_t scaled = (uint32_t)cumulative_units * 255u;
+			const uint32_t scaled = (uint32_t)cumulative_weight * 255u;
 			status->flag_marker_progress[status->flag_marker_count++] =
-				(uint8_t)(scaled / runtime->level_progress_units_total);
+				(uint8_t)(scaled / runtime->level_total_weight);
 		}
-		cumulative_units = (uint16_t)(cumulative_units + wave_total_units(wave));
+		cumulative_weight = (uint16_t)(cumulative_weight + current_wave_weight(wave));
 	}
 }
 
