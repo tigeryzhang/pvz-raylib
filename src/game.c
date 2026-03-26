@@ -1,15 +1,299 @@
 #include "game.h"
 #include "game_types.h"
 #include "pvz_config.h"
+#include "pvz_utils.h"
 
 #include <math.h>
 #include <string.h>
 
-// TODO: Temp solution for a wave definition
-static const ZombieType zombie_wave_types[] = {
-	ZOMBIE_REGULAR,	   ZOMBIE_CONE,	   ZOMBIE_BUCKETHEAD, ZOMBIE_REGULAR,	 ZOMBIE_CONE,
-	ZOMBIE_BUCKETHEAD, ZOMBIE_REGULAR, ZOMBIE_CONE,		  ZOMBIE_BUCKETHEAD,
+#define PVZ_MAJOR_WAVE_WARNING_SEC 2.0f
+
+static const PvzSpawnGroup level_0_wave_0_groups[] = {
+	{.type = ZOMBIE_REGULAR,
+	 .count = 3,
+	 .first_spawn_delay_sec = 0.0f,
+	 .spawn_interval_sec = 1.8f,
+	 .lane = PVZ_LANE_AUTO,
+	 .lane_mask = PVZ_LANE_MASK_ALL},
 };
+
+static const PvzSpawnGroup level_0_wave_1_groups[] = {
+	{.type = ZOMBIE_REGULAR,
+	 .count = 4,
+	 .first_spawn_delay_sec = 0.0f,
+	 .spawn_interval_sec = 1.4f,
+	 .lane = PVZ_LANE_AUTO,
+	 .lane_mask = PVZ_LANE_MASK_ALL},
+	{.type = ZOMBIE_CONE,
+	 .count = 2,
+	 .first_spawn_delay_sec = 1.3f,
+	 .spawn_interval_sec = 2.0f,
+	 .lane = PVZ_LANE_AUTO,
+	 .lane_mask = PVZ_LANE_MASK_ALL},
+};
+
+static const PvzSpawnGroup level_0_wave_2_groups[] = {
+	{.type = ZOMBIE_REGULAR,
+	 .count = 3,
+	 .first_spawn_delay_sec = 0.0f,
+	 .spawn_interval_sec = 1.1f,
+	 .lane = PVZ_LANE_AUTO,
+	 .lane_mask = PVZ_LANE_MASK_ALL},
+	{.type = ZOMBIE_CONE,
+	 .count = 3,
+	 .first_spawn_delay_sec = 0.8f,
+	 .spawn_interval_sec = 1.4f,
+	 .lane = PVZ_LANE_AUTO,
+	 .lane_mask = PVZ_LANE_MASK_ALL},
+	{.type = ZOMBIE_BUCKETHEAD,
+	 .count = 1,
+	 .first_spawn_delay_sec = 1.2f,
+	 .spawn_interval_sec = 1.6f,
+	 .lane = PVZ_LANE_AUTO,
+	 .lane_mask = PVZ_LANE_MASK_ALL},
+};
+
+static const PvzWaveDef level_0_waves[] = {
+	{.groups = level_0_wave_0_groups,
+	 .group_count = 1,
+	 .start_delay_sec = 0.0f,
+	 .drain_threshold = 0,
+	 .flags = PVZ_WAVE_FLAG_NONE,
+	 .progress_weight = 3},
+	{.groups = level_0_wave_1_groups,
+	 .group_count = 2,
+	 .start_delay_sec = 3.0f,
+	 .drain_threshold = 1,
+	 .flags = PVZ_WAVE_FLAG_NONE,
+	 .progress_weight = 4},
+	{.groups = level_0_wave_2_groups,
+	 .group_count = 3,
+	 .start_delay_sec = 4.0f,
+	 .drain_threshold = 1,
+	 .flags = PVZ_WAVE_FLAG_MAJOR,
+	 .progress_weight = 5},
+};
+
+static const PvzSpawnGroup level_1_wave_0_groups[] = {
+	{.type = ZOMBIE_REGULAR,
+	 .count = 4,
+	 .first_spawn_delay_sec = 0.0f,
+	 .spawn_interval_sec = 1.3f,
+	 .lane = PVZ_LANE_AUTO,
+	 .lane_mask = 0x0Fu},
+};
+
+static const PvzSpawnGroup level_1_wave_1_groups[] = {
+	{.type = ZOMBIE_REGULAR,
+	 .count = 5,
+	 .first_spawn_delay_sec = 0.0f,
+	 .spawn_interval_sec = 1.0f,
+	 .lane = PVZ_LANE_AUTO,
+	 .lane_mask = PVZ_LANE_MASK_ALL},
+	{.type = ZOMBIE_CONE,
+	 .count = 2,
+	 .first_spawn_delay_sec = 1.0f,
+	 .spawn_interval_sec = 1.6f,
+	 .lane = PVZ_LANE_AUTO,
+	 .lane_mask = PVZ_LANE_MASK_ALL},
+};
+
+static const PvzSpawnGroup level_1_wave_2_groups[] = {
+	{.type = ZOMBIE_CONE,
+	 .count = 4,
+	 .first_spawn_delay_sec = 0.0f,
+	 .spawn_interval_sec = 1.0f,
+	 .lane = PVZ_LANE_AUTO,
+	 .lane_mask = PVZ_LANE_MASK_ALL},
+	{.type = ZOMBIE_REGULAR,
+	 .count = 3,
+	 .first_spawn_delay_sec = 0.7f,
+	 .spawn_interval_sec = 1.2f,
+	 .lane = 0,
+	 .lane_mask = 0},
+};
+
+static const PvzSpawnGroup level_1_wave_3_groups[] = {
+	{.type = ZOMBIE_REGULAR,
+	 .count = 4,
+	 .first_spawn_delay_sec = 0.0f,
+	 .spawn_interval_sec = 0.9f,
+	 .lane = PVZ_LANE_AUTO,
+	 .lane_mask = PVZ_LANE_MASK_ALL},
+	{.type = ZOMBIE_BUCKETHEAD,
+	 .count = 2,
+	 .first_spawn_delay_sec = 1.2f,
+	 .spawn_interval_sec = 2.0f,
+	 .lane = PVZ_LANE_AUTO,
+	 .lane_mask = 0x0Au},
+};
+
+static const PvzSpawnGroup level_1_wave_4_groups[] = {
+	{.type = ZOMBIE_CONE,
+	 .count = 4,
+	 .first_spawn_delay_sec = 0.0f,
+	 .spawn_interval_sec = 0.8f,
+	 .lane = PVZ_LANE_AUTO,
+	 .lane_mask = PVZ_LANE_MASK_ALL},
+	{.type = ZOMBIE_BUCKETHEAD,
+	 .count = 3,
+	 .first_spawn_delay_sec = 0.8f,
+	 .spawn_interval_sec = 1.4f,
+	 .lane = PVZ_LANE_AUTO,
+	 .lane_mask = PVZ_LANE_MASK_ALL},
+};
+
+static const PvzWaveDef level_1_waves[] = {
+	{.groups = level_1_wave_0_groups,
+	 .group_count = 1,
+	 .start_delay_sec = 0.0f,
+	 .drain_threshold = 0,
+	 .flags = PVZ_WAVE_FLAG_NONE,
+	 .progress_weight = 3},
+	{.groups = level_1_wave_1_groups,
+	 .group_count = 2,
+	 .start_delay_sec = 2.5f,
+	 .drain_threshold = 2,
+	 .flags = PVZ_WAVE_FLAG_NONE,
+	 .progress_weight = 4},
+	{.groups = level_1_wave_2_groups,
+	 .group_count = 2,
+	 .start_delay_sec = 3.0f,
+	 .drain_threshold = 2,
+	 .flags = PVZ_WAVE_FLAG_MAJOR,
+	 .progress_weight = 5},
+	{.groups = level_1_wave_3_groups,
+	 .group_count = 2,
+	 .start_delay_sec = 2.5f,
+	 .drain_threshold = 2,
+	 .flags = PVZ_WAVE_FLAG_NONE,
+	 .progress_weight = 4},
+	{.groups = level_1_wave_4_groups,
+	 .group_count = 2,
+	 .start_delay_sec = 3.0f,
+	 .drain_threshold = 1,
+	 .flags = PVZ_WAVE_FLAG_MAJOR,
+	 .progress_weight = 6},
+};
+
+static const PvzSpawnGroup level_2_wave_0_groups[] = {
+	{.type = ZOMBIE_REGULAR,
+	 .count = 5,
+	 .first_spawn_delay_sec = 0.0f,
+	 .spawn_interval_sec = 1.0f,
+	 .lane = PVZ_LANE_AUTO,
+	 .lane_mask = PVZ_LANE_MASK_ALL},
+	{.type = ZOMBIE_CONE,
+	 .count = 2,
+	 .first_spawn_delay_sec = 1.4f,
+	 .spawn_interval_sec = 1.8f,
+	 .lane = PVZ_LANE_AUTO,
+	 .lane_mask = PVZ_LANE_MASK_ALL},
+};
+
+static const PvzSpawnGroup level_2_wave_1_groups[] = {
+	{.type = ZOMBIE_BUCKETHEAD,
+	 .count = 3,
+	 .first_spawn_delay_sec = 0.0f,
+	 .spawn_interval_sec = 2.2f,
+	 .lane = PVZ_LANE_AUTO,
+	 .lane_mask = 0x15u},
+	{.type = ZOMBIE_CONE,
+	 .count = 3,
+	 .first_spawn_delay_sec = 1.0f,
+	 .spawn_interval_sec = 1.7f,
+	 .lane = PVZ_LANE_AUTO,
+	 .lane_mask = PVZ_LANE_MASK_ALL},
+};
+
+static const PvzSpawnGroup level_2_wave_2_groups[] = {
+	{.type = ZOMBIE_BUCKETHEAD,
+	 .count = 4,
+	 .first_spawn_delay_sec = 0.0f,
+	 .spawn_interval_sec = 1.9f,
+	 .lane = PVZ_LANE_AUTO,
+	 .lane_mask = PVZ_LANE_MASK_ALL},
+};
+
+static const PvzSpawnGroup level_2_wave_3_groups[] = {
+	{.type = ZOMBIE_CONE,
+	 .count = 4,
+	 .first_spawn_delay_sec = 0.0f,
+	 .spawn_interval_sec = 0.8f,
+	 .lane = PVZ_LANE_AUTO,
+	 .lane_mask = PVZ_LANE_MASK_ALL},
+	{.type = ZOMBIE_BUCKETHEAD,
+	 .count = 4,
+	 .first_spawn_delay_sec = 0.8f,
+	 .spawn_interval_sec = 1.1f,
+	 .lane = PVZ_LANE_AUTO,
+	 .lane_mask = PVZ_LANE_MASK_ALL},
+};
+
+static const PvzWaveDef level_2_waves[] = {
+	{.groups = level_2_wave_0_groups,
+	 .group_count = 2,
+	 .start_delay_sec = 0.0f,
+	 .drain_threshold = 0,
+	 .flags = PVZ_WAVE_FLAG_NONE,
+	 .progress_weight = 4},
+	{.groups = level_2_wave_1_groups,
+	 .group_count = 2,
+	 .start_delay_sec = 3.5f,
+	 .drain_threshold = 2,
+	 .flags = PVZ_WAVE_FLAG_MAJOR,
+	 .progress_weight = 5},
+	{.groups = level_2_wave_2_groups,
+	 .group_count = 1,
+	 .start_delay_sec = 4.0f,
+	 .drain_threshold = 1,
+	 .flags = PVZ_WAVE_FLAG_NONE,
+	 .progress_weight = 5},
+	{.groups = level_2_wave_3_groups,
+	 .group_count = 2,
+	 .start_delay_sec = 4.0f,
+	 .drain_threshold = 1,
+	 .flags = PVZ_WAVE_FLAG_MAJOR,
+	 .progress_weight = 7},
+};
+
+static const PvzLevelDef builtin_levels[] = {
+	{.waves = level_0_waves, .wave_count = 3, .opening_delay_sec = 1.2f, .starting_sun_override = -1},
+	{.waves = level_1_waves, .wave_count = 5, .opening_delay_sec = 1.0f, .starting_sun_override = -1},
+	{.waves = level_2_waves, .wave_count = 4, .opening_delay_sec = 1.0f, .starting_sun_override = 225},
+};
+
+static uint8_t clamp_level_index(uint8_t level_index) {
+	const uint8_t level_count = (uint8_t)(sizeof(builtin_levels) / sizeof(builtin_levels[0]));
+	return level_index < level_count ? level_index : 0;
+}
+
+static const PvzLevelDef *current_level_def(const GameState *state) {
+	return &builtin_levels[clamp_level_index(state->wave_runtime.level_index)];
+}
+
+static uint8_t current_wave_weight(const PvzWaveDef *wave) {
+	return wave->progress_weight > 0 ? wave->progress_weight : 1;
+}
+
+static uint16_t seconds_to_runtime_ticks(const GameState *state, float seconds) {
+	const float fallback_dt = 1.0f / 30.0f;
+	const float fixed_dt =
+		(state && state->config && state->config->fixed_dt > 0.0f) ? state->config->fixed_dt : fallback_dt;
+
+	if (seconds <= 0.0f) {
+		return 0;
+	}
+
+	float runtime_ticks = seconds / fixed_dt;
+	if (runtime_ticks < 1.0f) {
+		runtime_ticks = 1.0f;
+	}
+	if (runtime_ticks > 65535.0f) {
+		runtime_ticks = 65535.0f;
+	}
+	return (uint16_t)(runtime_ticks + 0.5f);
+}
 
 static void clear_state_arrays(GameState *state) {
 	memset(state->plants, 0, sizeof(state->plants));
@@ -22,8 +306,6 @@ static void clear_state_arrays(GameState *state) {
 		}
 	}
 }
-
-static int zombie_total_count(void) { return (int)(sizeof(zombie_wave_types) / sizeof(zombie_wave_types[0])); }
 
 static int get_free_plant_slot(GameState *state) {
 	for (int i = 0; i < PVZ_MAX_PLANTS; ++i) {
@@ -142,6 +424,92 @@ static int get_zombie_armor(const GameState *state, ZombieType zombie_type) {
 	}
 }
 
+static int count_active_zombies(const GameState *state) {
+	int count = 0;
+	for (int i = 0; i < PVZ_MAX_ZOMBIES; ++i) {
+		if (state->zombies[i].active) {
+			++count;
+		}
+	}
+	return count;
+}
+
+static uint8_t active_lane_mask(const GameState *state) {
+	uint8_t mask = 0;
+	const int rows = clamp_int(state->config->rows, 0, PVZ_MAX_ROWS);
+	for (int row = 0; row < rows; ++row) {
+		mask |= (uint8_t)(1u << row);
+	}
+	return mask;
+}
+
+static uint8_t sanitize_lane_mask(const GameState *state, uint8_t lane_mask) {
+	const uint8_t valid_mask = active_lane_mask(state);
+	uint8_t sanitized = lane_mask & valid_mask;
+	if (sanitized == 0) {
+		sanitized = valid_mask;
+	}
+	return sanitized;
+}
+
+static int select_auto_lane(GameState *state, uint8_t lane_mask) {
+	// Deterministic lane selection
+
+	const int rows = state->config->rows;
+	const uint8_t valid_mask = sanitize_lane_mask(state, lane_mask);
+	int lane_counts[PVZ_MAX_ROWS] = {0};
+
+	for (int i = 0; i < PVZ_MAX_ZOMBIES; ++i) {
+		if (!state->zombies[i].active) {
+			continue;
+		}
+		if (state->zombies[i].lane >= 0 && state->zombies[i].lane < rows) {
+			lane_counts[state->zombies[i].lane]++;
+		}
+	}
+
+	int best_lane = 0;
+	int best_count = 0x7fffffff; // i32::MAX
+	const int start_lane = rows > 0 ? state->wave_runtime.next_auto_lane % rows : 0;
+
+	for (int offset = 0; offset < rows; ++offset) {
+		const int lane = (start_lane + offset) % rows;
+		if ((valid_mask & (uint8_t)(1u << lane)) == 0) {
+			continue;
+		}
+		if (lane_counts[lane] < best_count) {
+			best_lane = lane;
+			best_count = lane_counts[lane];
+		}
+	}
+
+	state->wave_runtime.next_auto_lane = (uint8_t)((best_lane + 1) % rows);
+	return best_lane;
+}
+
+static int count_group_spawns(const PvzSpawnGroup *group) { return group ? group->count : 0; }
+
+static uint16_t count_wave_spawns(const PvzWaveDef *wave) {
+	uint16_t total = 0;
+	for (uint8_t i = 0; i < wave->group_count; ++i) {
+		total = (uint16_t)(total + count_group_spawns(&wave->groups[i]));
+	}
+	return total;
+}
+
+static uint16_t wave_total_units(const PvzWaveDef *wave) {
+	const uint16_t spawn_count = count_wave_spawns(wave);
+	return (uint16_t)((spawn_count + 1u) * current_wave_weight(wave));
+}
+
+static uint16_t level_total_units(const PvzLevelDef *level) {
+	uint16_t total = 0;
+	for (uint8_t i = 0; i < level->wave_count; ++i) {
+		total = (uint16_t)(total + wave_total_units(&level->waves[i]));
+	}
+	return total;
+}
+
 static void remove_plant(GameState *state, int index) {
 	if (index < 0 || index >= PVZ_MAX_PLANTS || !state->plants[index].active) {
 		return;
@@ -230,28 +598,178 @@ static void spawn_demo_plants(GameState *state) {
 	}
 }
 
-static void spawn_next_zombie(GameState *state) {
-	if (state->wave_cursor >= zombie_total_count()) {
-		return;
-	}
-
+static bool spawn_wave_zombie(GameState *state, const PvzSpawnGroup *group) {
 	const int slot = get_free_zombie_slot(state);
 	if (slot < 0) {
+		return false;
+	}
+
+	int lane = group->lane;
+	if (lane == PVZ_LANE_AUTO) {
+		lane = select_auto_lane(state, group->lane_mask);
+	}
+
+	Zombie *zombie = &state->zombies[slot];
+	zombie->active = true;
+	zombie->type = group->type;
+	zombie->lane = lane;
+	zombie->x = (float)state->config->cols + 0.45f;
+	zombie->health = get_zombie_health(state, group->type);
+	zombie->armor = get_zombie_armor(state, group->type);
+	zombie->speed = get_zombie_speed(state, group->type);
+	zombie->attack_timer = state->config->zombie_attack_interval;
+	return true;
+}
+
+static bool load_current_group(GameState *state) {
+	// Finds and loads first non-empty group
+	// Returns true if a group was found
+
+	GameWaveRuntime *runtime = &state->wave_runtime;
+	const PvzLevelDef *level = current_level_def(state);
+	const PvzWaveDef *wave = &level->waves[runtime->wave_index];
+
+	while (runtime->group_index < wave->group_count) {
+		const PvzSpawnGroup *group = &wave->groups[runtime->group_index];
+		if (group->count == 0) {
+			runtime->group_index++;
+			continue;
+		}
+		runtime->spawns_left_in_group = group->count;
+		runtime->ticks_until_spawn = seconds_to_runtime_ticks(state, group->first_spawn_delay_sec);
+		return true;
+	}
+
+	runtime->spawns_left_in_group = 0;
+	runtime->ticks_until_spawn = 0;
+	return false;
+}
+
+static void begin_wave(GameState *state) {
+	GameWaveRuntime *runtime = &state->wave_runtime;
+	runtime->wave_started = true;
+	runtime->warning_active = false;
+	runtime->warning_ticks_remaining = 0;
+	runtime->group_index = 0;
+	runtime->spawns_left_in_group = 0;
+	runtime->ticks_until_spawn = 0;
+	load_current_group(state);
+}
+
+static void advance_to_next_wave(GameState *state) {
+	GameWaveRuntime *runtime = &state->wave_runtime;
+	const PvzLevelDef *level = current_level_def(state);
+
+	// Add to wave progress tracker
+	if (runtime->wave_index < level->wave_count) {
+		const PvzWaveDef *wave = &level->waves[runtime->wave_index];
+		const uint16_t completion_weight = current_wave_weight(wave);
+		runtime->level_progress_units_done += completion_weight;
+	}
+
+	runtime->wave_index++;
+	runtime->wave_started = false;
+	runtime->warning_active = false;
+	runtime->warning_ticks_remaining = 0;
+	runtime->group_index = 0;
+	runtime->spawns_left_in_group = 0;
+	runtime->ticks_until_spawn = 0;
+
+	// Finished all waves
+	if (runtime->wave_index >= level->wave_count) {
+		runtime->level_exhausted = true;
+		runtime->ticks_until_wave = 0;
 		return;
 	}
 
-	const ZombieType type = zombie_wave_types[state->wave_cursor];
-	const int lane = state->wave_cursor % state->config->rows;
-	Zombie *zombie = &state->zombies[slot];
-	zombie->active = true;
-	zombie->type = type;
-	zombie->lane = lane;
-	zombie->x = (float)state->config->cols + 0.45f;
-	zombie->health = get_zombie_health(state, type);
-	zombie->armor = get_zombie_armor(state, type);
-	zombie->speed = get_zombie_speed(state, type);
-	zombie->attack_timer = state->config->zombie_attack_interval;
-	state->wave_cursor++;
+	// Setup next wave
+	const PvzWaveDef *next_wave = &level->waves[runtime->wave_index];
+	runtime->ticks_until_wave = seconds_to_runtime_ticks(state, next_wave->start_delay_sec);
+}
+
+static void step_wave_scheduler(GameState *state) {
+	GameWaveRuntime *runtime = &state->wave_runtime;
+	const PvzLevelDef *level = current_level_def(state);
+
+	if (runtime->level_exhausted || level->wave_count == 0) {
+		return;
+	}
+
+	const PvzWaveDef *wave = &level->waves[runtime->wave_index];
+
+	if (!runtime->wave_started) {
+		// Major wave warning was started
+		if (runtime->warning_active) {
+			if (runtime->warning_ticks_remaining > 0) {
+				runtime->warning_ticks_remaining--;
+			}
+
+			// Begin major wave when zombies go below threshold
+			if (runtime->warning_ticks_remaining == 0 && count_active_zombies(state) <= wave->drain_threshold) {
+				begin_wave(state);
+			}
+			return;
+		}
+
+		if (runtime->ticks_until_wave > 0) {
+			runtime->ticks_until_wave--;
+			return;
+		}
+
+		// Don't start next wave if there are too many zombies
+		if (count_active_zombies(state) > wave->drain_threshold) {
+			return;
+		}
+
+		const uint16_t warning_ticks = seconds_to_runtime_ticks(state, PVZ_MAJOR_WAVE_WARNING_SEC);
+		// If it's a major wave, then display warning
+		//  The wave will then spawn when the warning ticks have been exhausted
+		if (wave->flags & PVZ_WAVE_FLAG_MAJOR && warning_ticks > 0) {
+			runtime->warning_active = true;
+			runtime->warning_ticks_remaining = warning_ticks;
+			return;
+		}
+
+		// Otherwise, begin normal wave
+		begin_wave(state);
+	}
+
+	// Advance wave if all zombies in current wave have been defeated
+	if (runtime->wave_started && runtime->group_index >= wave->group_count && count_active_zombies(state) == 0) {
+		advance_to_next_wave(state);
+		return;
+	}
+
+	// Advance wave if current wave is exhausted
+	if (runtime->group_index >= wave->group_count || runtime->spawns_left_in_group == 0) {
+		if (!load_current_group(state) && count_active_zombies(state) == 0) {
+			advance_to_next_wave(state);
+		}
+		return;
+	}
+
+	if (runtime->ticks_until_spawn > 0) {
+		runtime->ticks_until_spawn--;
+		return;
+	}
+
+	const PvzSpawnGroup *group = &wave->groups[runtime->group_index];
+	if (!spawn_wave_zombie(state, group)) {
+		return;
+	}
+
+	runtime->spawns_left_in_group--;
+	runtime->level_progress_units_done += current_wave_weight(wave);
+
+	if (runtime->spawns_left_in_group > 0) {
+		runtime->ticks_until_spawn = seconds_to_runtime_ticks(state, group->spawn_interval_sec);
+		return;
+	}
+
+	runtime->group_index++;
+	if (!load_current_group(state) && count_active_zombies(state) == 0) {
+		advance_to_next_wave(state);
+	}
 }
 
 static void damage_zombie(Zombie *zombie, int damage) {
@@ -315,8 +833,6 @@ static void step_projectiles(GameState *state, float dt) {
 		const float previous_x = projectile->x;
 		projectile->x += projectile->speed * dt;
 
-		// Find closest zombie for projectile to hit
-		//  (perf note: mostly fine, as we don't have too many zombies)
 		Zombie *target = NULL;
 		float best_x = 9999.0f;
 		for (int j = 0; j < PVZ_MAX_ZOMBIES; ++j) {
@@ -358,7 +874,6 @@ static void step_zombies(GameState *state, float dt) {
 		if (target_col >= 0 && target_col < state->config->cols && zombie->lane >= 0 &&
 			zombie->lane < state->config->rows) {
 
-			// Check if can attack plant
 			const int plant_index = state->plant_grid[zombie->lane][target_col];
 			if (plant_index >= 0 && state->plants[plant_index].active && zombie->x <= (float)target_col + 0.82f) {
 				attacking = true;
@@ -391,18 +906,30 @@ bool game_coord_in_bounds(const GameState *state, BoardCoord coord) {
 void game_init(GameState *state, const GameConfig *config) {
 	memset(state, 0, sizeof(*state));
 	state->config = config;
+	state->wave_runtime.level_index = 0;
 	game_reset(state);
 }
 
 void game_reset(GameState *state) {
+	const uint8_t level_index = clamp_level_index(state->wave_runtime.level_index);
+	const PvzLevelDef *level = &builtin_levels[level_index];
+
 	clear_state_arrays(state);
-	state->sun_count = state->config->starting_sun;
+	memset(&state->wave_runtime, 0, sizeof(state->wave_runtime));
+	state->wave_runtime.level_index = level_index;
+	state->wave_runtime.level_progress_units_total = level_total_units(level);
+	state->wave_runtime.ticks_until_wave = seconds_to_runtime_ticks(state, level->opening_delay_sec);
+	state->wave_runtime.next_auto_lane = 0;
+
+	if (level->wave_count == 0) {
+		state->wave_runtime.level_exhausted = true;
+	}
+
+	state->sun_count = level->starting_sun_override >= 0 ? level->starting_sun_override : state->config->starting_sun;
 	state->selected_plant = PLANT_PEASHOOTER;
 	state->status = GAME_STATUS_RUNNING;
 	state->paused = false;
 	state->last_command_result = GAME_COMMAND_RESULT_OK;
-	state->spawn_timer = 1.3f;
-	state->wave_cursor = 0;
 
 	for (int i = 0; i < PVZ_NUM_PLANT_TYPES; ++i) {
 		state->seed_cooldowns[i] = 1;
@@ -410,6 +937,65 @@ void game_reset(GameState *state) {
 
 	if (state->config->start_with_demo_layout) {
 		spawn_demo_plants(state);
+	}
+}
+
+void game_set_level(GameState *state, uint8_t level_index) {
+	if (!state) {
+		return;
+	}
+	state->wave_runtime.level_index = clamp_level_index(level_index);
+	if (state->config) {
+		game_reset(state);
+	}
+}
+
+uint8_t game_get_level_count(void) { return (uint8_t)(sizeof(builtin_levels) / sizeof(builtin_levels[0])); }
+
+void game_get_wave_status(const GameState *state, GameWaveStatus *status) {
+	if (!status) {
+		return;
+	}
+
+	memset(status, 0, sizeof(*status));
+	if (!state || !state->config) {
+		return;
+	}
+
+	const PvzLevelDef *level = current_level_def(state);
+	const GameWaveRuntime *runtime = &state->wave_runtime;
+
+	status->wave_count = level->wave_count;
+	if (runtime->level_progress_units_total > 0) {
+		status->level_progress_01 =
+			(float)runtime->level_progress_units_done / (float)runtime->level_progress_units_total;
+		if (status->level_progress_01 > 1.0f) {
+			status->level_progress_01 = 1.0f;
+		}
+	}
+
+	uint8_t wave_index = runtime->wave_index;
+	if (level->wave_count > 0 && wave_index >= level->wave_count) {
+		wave_index = (uint8_t)(level->wave_count - 1);
+	}
+	status->current_wave_index = wave_index;
+	status->warning_active = runtime->warning_active;
+	status->current_wave_is_major =
+		level->wave_count > 0 && (level->waves[wave_index].flags & PVZ_WAVE_FLAG_MAJOR) != 0;
+
+	if (runtime->level_progress_units_total == 0) {
+		return;
+	}
+
+	uint16_t cumulative_units = 0;
+	for (uint8_t i = 0; i < level->wave_count; ++i) {
+		const PvzWaveDef *wave = &level->waves[i];
+		if ((wave->flags & PVZ_WAVE_FLAG_MAJOR) != 0 && status->flag_marker_count < PVZ_MAX_WAVE_FLAG_MARKERS) {
+			const uint32_t scaled = (uint32_t)cumulative_units * 255u;
+			status->flag_marker_progress[status->flag_marker_count++] =
+				(uint8_t)(scaled / runtime->level_progress_units_total);
+		}
+		cumulative_units = (uint16_t)(cumulative_units + wave_total_units(wave));
 	}
 }
 
@@ -484,26 +1070,14 @@ GameCommandResult game_apply_command(GameState *state, GameCommand command) {
 	return result;
 }
 
-bool game_has_active_zombies(const GameState *state) {
-	for (int i = 0; i < PVZ_MAX_ZOMBIES; ++i) {
-		if (state->zombies[i].active) {
-			return true;
-		}
-	}
-	return false;
-}
+bool game_has_active_zombies(const GameState *state) { return count_active_zombies(state) > 0; }
 
 void game_step(GameState *state, float delta) {
 	if (state->paused || state->status != GAME_STATUS_RUNNING) {
 		return;
 	}
 
-	state->spawn_timer -= delta;
-	if (state->spawn_timer <= 0.0f && state->wave_cursor < zombie_total_count()) {
-		spawn_next_zombie(state);
-		state->spawn_timer += state->config->zombie_spawn_interval;
-	}
-
+	step_wave_scheduler(state);
 	step_suns(state, delta);
 	step_plants(state, delta);
 	step_projectiles(state, delta);
@@ -516,36 +1090,8 @@ void game_step(GameState *state, float delta) {
 		}
 	}
 
-	if (state->status == GAME_STATUS_RUNNING && state->wave_cursor >= zombie_total_count() &&
+	if (state->status == GAME_STATUS_RUNNING && state->wave_runtime.level_exhausted &&
 		!game_has_active_zombies(state)) {
 		state->status = GAME_STATUS_WON;
-	}
-}
-
-const char *pvz_get_plant_name(PlantType plant_type) {
-	switch (plant_type) {
-	case PLANT_SUNFLOWER:
-		return "Sunflower";
-	case PLANT_PEASHOOTER:
-		return "Peashooter";
-	case PLANT_WALLNUT:
-		return "Wallnut";
-	case PLANT_NONE:
-	default:
-		return "None";
-	}
-}
-
-const char *pvz_get_zombie_name(ZombieType zombie_type) {
-	switch (zombie_type) {
-	case ZOMBIE_REGULAR:
-		return "Regular";
-	case ZOMBIE_CONE:
-		return "Cone";
-	case ZOMBIE_BUCKETHEAD:
-		return "Bucket";
-	case ZOMBIE_NONE:
-	default:
-		return "None";
 	}
 }

@@ -127,7 +127,7 @@ static void set_pixel(RenderView *view, RenderTarget target, int x, int y, Rende
 }
 
 static void draw_rect(RenderView *view, RenderTarget target, IntRect rect, RenderPalette palette, int thickness) {
-    // TODO: Use DMA-2D (Chrom-Art)
+	// TODO: Use DMA-2D (Chrom-Art)
 	if (!view || rect.w <= 0 || rect.h <= 0) {
 		return;
 	}
@@ -357,6 +357,49 @@ static float get_seed_cooldown(const RenderView *view, PlantType type) {
 	}
 }
 
+static void draw_wave_progress(RenderView *view) {
+	char buffer[24];
+	const IntRect panel = {.x = 140, .y = 8, .w = view->hud_width - 150, .h = 42};
+	const IntRect bar = {.x = panel.x + 10, .y = panel.y + 18, .w = panel.w - 20, .h = 12};
+	const int current_wave = view->wave_count > 0 ? view->current_wave_index + 1 : 0;
+
+	draw_rect(view, RENDER_TARGET_HUD, panel, RENDER_PALETTE_PANEL, 0);
+	draw_rect(view, RENDER_TARGET_HUD, panel, RENDER_PALETTE_TEXT, 2);
+	snprintf(buffer, sizeof(buffer), "WAVE %d of %d", current_wave, view->wave_count);
+	draw_text_3x5(view, RENDER_TARGET_HUD, buffer, panel.x + 10, panel.y + 6, 2, RENDER_PALETTE_TEXT);
+
+	draw_rect(view, RENDER_TARGET_HUD, bar, RENDER_PALETTE_BG, 0);
+	draw_rect(view, RENDER_TARGET_HUD, bar, RENDER_PALETTE_TEXT, 1);
+
+	int fill_width = (int)((float)(bar.w - 2) * view->level_progress_01);
+	if (fill_width < 0) {
+		fill_width = 0;
+	}
+	if (fill_width > bar.w - 2) {
+		fill_width = bar.w - 2;
+	}
+	if (fill_width > 0) {
+		draw_rect(view, RENDER_TARGET_HUD, (IntRect){.x = bar.x + 1, .y = bar.y + 1, .w = fill_width, .h = bar.h - 2},
+				  view->wave_warning_active ? RENDER_PALETTE_WARNING : RENDER_PALETTE_SUCCESS, 0);
+	}
+
+	for (int i = 0; i < view->flag_marker_count; ++i) {
+		const int marker_x = bar.x + 1 + (view->flag_marker_progress[i] * (bar.w - 2)) / 255;
+		draw_rect(view, RENDER_TARGET_HUD, (IntRect){.x = marker_x, .y = bar.y - 3, .w = 2, .h = bar.h + 6},
+				  RENDER_PALETTE_WARNING, 0);
+		draw_rect(view, RENDER_TARGET_HUD, (IntRect){.x = marker_x, .y = bar.y - 3, .w = 8, .h = 6},
+				  RENDER_PALETTE_HIGHLIGHT, 0);
+	}
+
+	if (view->wave_warning_active) {
+		const IntRect warning_rect = {.x = 140, .y = 54, .w = view->hud_width - 150, .h = 18};
+		draw_rect(view, RENDER_TARGET_HUD, warning_rect, RENDER_PALETTE_WARNING, 0);
+		draw_rect(view, RENDER_TARGET_HUD, warning_rect, RENDER_PALETTE_TEXT, 1);
+		draw_text_3x5(view, RENDER_TARGET_HUD, "HUGE WAVE INCOMING", warning_rect.x + 10, warning_rect.y + 4, 2,
+					  RENDER_PALETTE_PANEL);
+	}
+}
+
 static void draw_card(RenderView *view, const GameConfig *config, int index, PlantType type) {
 	char buffer[16];
 
@@ -365,7 +408,7 @@ static void draw_card(RenderView *view, const GameConfig *config, int index, Pla
 	const int width = (view->hud_width - margin * (num_cards + 1)) / num_cards;
 	const int x = margin + (width + margin) * index;
 
-	const IntRect rect = {.x = x, .y = 34, .w = width, .h = 200};
+	const IntRect rect = {.x = x, .y = 82, .w = width, .h = 180};
 	const bool selected = view->selected_plant == type;
 	const RenderPalette fill = selected ? RENDER_PALETTE_TILE_LIGHT : RENDER_PALETTE_TILE_DARK;
 	const RenderPalette cooldown = RENDER_PALETTE_BG;
@@ -404,12 +447,16 @@ static void draw_card(RenderView *view, const GameConfig *config, int index, Pla
 }
 
 void presentation_build_play_view(RenderView *view, const GameState *game, RenderStatus status) {
+	GameWaveStatus wave_status;
+
 	// Draw game
 	const int unit_size = board_unit_size(game->config);
 	const int plant_padding = unit_size / 8 > 0 ? unit_size / 8 : 1;
 	const int zombie_size = unit_size - unit_size / 5;
 	const int projectile_size = unit_size / 5 > 0 ? unit_size / 5 : 1;
 	const int sun_size = unit_size / 3 > 0 ? unit_size / 3 : 1;
+
+	game_get_wave_status(game, &wave_status);
 
 	render_view_begin(view, game->config->board_x_resolution, game->config->board_y_resolution,
 					  game->config->hud_x_resolution, game->config->hud_y_resolution, RENDER_PALETTE_BG);
@@ -418,6 +465,13 @@ void presentation_build_play_view(RenderView *view, const GameState *game, Rende
 	view->sun_count = game->sun_count;
 	view->paused = game->paused;
 	view->game_status = game->status;
+	view->level_progress_01 = wave_status.level_progress_01;
+	view->current_wave_index = wave_status.current_wave_index;
+	view->wave_count = wave_status.wave_count;
+	view->wave_warning_active = wave_status.warning_active;
+	view->current_wave_is_major = wave_status.current_wave_is_major;
+	view->flag_marker_count = wave_status.flag_marker_count;
+	memcpy(view->flag_marker_progress, wave_status.flag_marker_progress, sizeof(wave_status.flag_marker_progress));
 	view->status = status;
 
 	draw_tile_checkerboard(view, game);
@@ -463,6 +517,7 @@ void presentation_build_play_view(RenderView *view, const GameState *game, Rende
 	char buffer[10];
 	snprintf(buffer, sizeof(buffer), "SUN: %d", view->sun_count);
 	draw_text_3x5(view, RENDER_TARGET_HUD, buffer, 10, 10, 3, RENDER_PALETTE_TEXT);
+	draw_wave_progress(view);
 
 	draw_card(view, game->config, 0, PLANT_SUNFLOWER);
 	draw_card(view, game->config, 1, PLANT_PEASHOOTER);

@@ -120,6 +120,7 @@ OBJECTS :=
 
 GENERATED += $(OBJDIR)/app.o
 GENERATED += $(OBJDIR)/game.o
+GENERATED += $(OBJDIR)/game_types.o
 GENERATED += $(OBJDIR)/input.o
 GENERATED += $(OBJDIR)/main.o
 GENERATED += $(OBJDIR)/placeholder_scene.o
@@ -128,9 +129,9 @@ GENERATED += $(OBJDIR)/presentation.o
 GENERATED += $(OBJDIR)/pvz_config.o
 GENERATED += $(OBJDIR)/pvz_utils.o
 GENERATED += $(OBJDIR)/raylib_frontend.o
-GENERATED += $(OBJDIR)/tests.o
 OBJECTS += $(OBJDIR)/app.o
 OBJECTS += $(OBJDIR)/game.o
+OBJECTS += $(OBJDIR)/game_types.o
 OBJECTS += $(OBJDIR)/input.o
 OBJECTS += $(OBJDIR)/main.o
 OBJECTS += $(OBJDIR)/placeholder_scene.o
@@ -139,7 +140,6 @@ OBJECTS += $(OBJDIR)/presentation.o
 OBJECTS += $(OBJDIR)/pvz_config.o
 OBJECTS += $(OBJDIR)/pvz_utils.o
 OBJECTS += $(OBJDIR)/raylib_frontend.o
-OBJECTS += $(OBJDIR)/tests.o
 
 # Rules
 # #############################################
@@ -209,6 +209,9 @@ $(OBJDIR)/app.o: src/app.c
 $(OBJDIR)/game.o: src/game.c
 	@echo "$(notdir $<)"
 	$(SILENT) $(CC) $(ALL_CFLAGS) $(FORCE_INCLUDE) -o "$@" -MF "$(@:%.o=%.d)" -c "$<"
+$(OBJDIR)/game_types.o: src/game_types.c
+	@echo "$(notdir $<)"
+	$(SILENT) $(CC) $(ALL_CFLAGS) $(FORCE_INCLUDE) -o "$@" -MF "$(@:%.o=%.d)" -c "$<"
 $(OBJDIR)/input.o: src/input.c
 	@echo "$(notdir $<)"
 	$(SILENT) $(CC) $(ALL_CFLAGS) $(FORCE_INCLUDE) -o "$@" -MF "$(@:%.o=%.d)" -c "$<"
@@ -231,9 +234,6 @@ $(OBJDIR)/pvz_utils.o: src/pvz_utils.c
 	@echo "$(notdir $<)"
 	$(SILENT) $(CC) $(ALL_CFLAGS) $(FORCE_INCLUDE) -o "$@" -MF "$(@:%.o=%.d)" -c "$<"
 $(OBJDIR)/raylib_frontend.o: src/raylib_frontend.c
-	@echo "$(notdir $<)"
-	$(SILENT) $(CC) $(ALL_CFLAGS) $(FORCE_INCLUDE) -o "$@" -MF "$(@:%.o=%.d)" -c "$<"
-$(OBJDIR)/tests.o: src/tests.c
 	@echo "$(notdir $<)"
 	$(SILENT) $(CC) $(ALL_CFLAGS) $(FORCE_INCLUDE) -o "$@" -MF "$(@:%.o=%.d)" -c "$<"
 

@@ -51,6 +51,13 @@ typedef struct {
 	int sun_count;
 	bool paused;
 	GameStatus game_status;
+	float level_progress_01;
+	uint8_t current_wave_index;
+	uint8_t wave_count;
+	bool wave_warning_active;
+	bool current_wave_is_major;
+	uint8_t flag_marker_count;
+	uint8_t flag_marker_progress[PVZ_MAX_WAVE_FLAG_MARKERS];
 	RenderStatus status;
 } RenderView;
 
