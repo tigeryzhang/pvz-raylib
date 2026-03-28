@@ -907,7 +907,7 @@ bool game_coord_in_bounds(const GameState *state, BoardCoord coord) {
 void game_init(GameState *state, const GameConfig *config) {
 	memset(state, 0, sizeof(*state));
 	state->config = config;
-	state->wave_runtime.level_index = 0;
+	state->wave_runtime.level_index = 2;
 	game_reset(state);
 }
 

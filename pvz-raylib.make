@@ -129,6 +129,7 @@ GENERATED += $(OBJDIR)/presentation.o
 GENERATED += $(OBJDIR)/pvz_config.o
 GENERATED += $(OBJDIR)/pvz_utils.o
 GENERATED += $(OBJDIR)/raylib_frontend.o
+GENERATED += $(OBJDIR)/render_assets.o
 OBJECTS += $(OBJDIR)/app.o
 OBJECTS += $(OBJDIR)/game.o
 OBJECTS += $(OBJDIR)/game_types.o
@@ -140,6 +141,7 @@ OBJECTS += $(OBJDIR)/presentation.o
 OBJECTS += $(OBJDIR)/pvz_config.o
 OBJECTS += $(OBJDIR)/pvz_utils.o
 OBJECTS += $(OBJDIR)/raylib_frontend.o
+OBJECTS += $(OBJDIR)/render_assets.o
 
 # Rules
 # #############################################
@@ -234,6 +236,9 @@ $(OBJDIR)/pvz_utils.o: src/pvz_utils.c
 	@echo "$(notdir $<)"
 	$(SILENT) $(CC) $(ALL_CFLAGS) $(FORCE_INCLUDE) -o "$@" -MF "$(@:%.o=%.d)" -c "$<"
 $(OBJDIR)/raylib_frontend.o: src/raylib_frontend.c
+	@echo "$(notdir $<)"
+	$(SILENT) $(CC) $(ALL_CFLAGS) $(FORCE_INCLUDE) -o "$@" -MF "$(@:%.o=%.d)" -c "$<"
+$(OBJDIR)/render_assets.o: src/render_assets.c
 	@echo "$(notdir $<)"
 	$(SILENT) $(CC) $(ALL_CFLAGS) $(FORCE_INCLUDE) -o "$@" -MF "$(@:%.o=%.d)" -c "$<"
 

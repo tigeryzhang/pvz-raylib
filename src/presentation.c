@@ -2,6 +2,7 @@
 #include "game_types.h"
 #include "pvz_config.h"
 #include "pvz_utils.h"
+#include "render_assets.h"
 
 #include <math.h>
 #include <stdint.h>
@@ -97,9 +98,12 @@ static void render_view_begin(RenderView *view, int board_width, int board_heigh
 }
 
 static bool render_view_contains(const RenderView *view, RenderTarget target, int x, int y) {
+	if (!view) {
+		return false;
+	}
 	int w = target == RENDER_TARGET_BOARD ? view->board_width : view->hud_width;
 	int h = target == RENDER_TARGET_BOARD ? view->board_height : view->hud_height;
-	return view && x >= 0 && y >= 0 && x < w && y < h;
+	return x >= 0 && y >= 0 && x < w && y < h;
 }
 
 static uint8_t *get_pixels(RenderView *view, RenderTarget target) {
@@ -119,11 +123,46 @@ static void set_pixel(RenderView *view, RenderTarget target, int x, int y, Rende
 	}
 
 	uint8_t *pixels = get_pixels(view, target);
+	int width = target == RENDER_TARGET_BOARD ? view->board_width : view->hud_width;
 	if (pixels == NULL) {
 		return;
 	}
 
-	pixels[y * view->board_width + x] = (uint8_t)palette;
+	pixels[y * width + x] = (uint8_t)palette;
+}
+
+static void draw_sprite(RenderView *view, RenderTarget target, const RenderSprite *sprite, int x, int y) {
+	if (!view || !sprite || !sprite->pixels) {
+		return;
+	}
+
+	for (int row = 0; row < sprite->height; ++row) {
+		for (int col = 0; col < sprite->width; ++col) {
+			const uint8_t pixel = sprite->pixels[row * sprite->width + col];
+			if (pixel == SPRITE_PIXEL_TRANSPARENT) {
+				continue;
+			}
+			set_pixel(view, target, x + col, y + row, (RenderPalette)pixel);
+		}
+	}
+}
+
+static void draw_sprite_scaled(RenderView *view, RenderTarget target, const RenderSprite *sprite, IntRect rect) {
+	if (!view || !sprite || !sprite->pixels || rect.w <= 0 || rect.h <= 0) {
+		return;
+	}
+
+	for (int y = 0; y < rect.h; ++y) {
+		const int src_y = y * sprite->height / rect.h;
+		for (int x = 0; x < rect.w; ++x) {
+			const int src_x = x * sprite->width / rect.w;
+			const uint8_t pixel = sprite->pixels[src_y * sprite->width + src_x];
+			if (pixel == SPRITE_PIXEL_TRANSPARENT) {
+				continue;
+			}
+			set_pixel(view, target, rect.x + x, rect.y + y, (RenderPalette)pixel);
+		}
+	}
 }
 
 static void draw_rect(RenderView *view, RenderTarget target, IntRect rect, RenderPalette palette, int thickness) {
@@ -235,75 +274,7 @@ static void draw_tile_checkerboard(RenderView *view, const GameState *game) {
 	}
 }
 
-static void draw_sunflower(RenderView *view, RenderTarget target, IntRect rect) {
-	const int stem_w = rect.w / 6 > 0 ? rect.w / 6 : 1;
-	const int center = rect.x + rect.w / 2;
-	const int petal = rect.w / 5 > 0 ? rect.w / 5 : 1;
-	draw_rect(view, target, (IntRect){center - stem_w / 2, rect.y + rect.h / 2, stem_w, rect.h / 3},
-			  RENDER_PALETTE_PLANT, 0);
-	draw_rect(view, target, (IntRect){center - petal / 2, rect.y + rect.h / 2 - petal / 2, petal, petal},
-			  RENDER_PALETTE_WALLNUT, 0);
-	draw_rect(view, target, (IntRect){center - petal / 2, rect.y + rect.h / 4 - petal / 2, petal, petal},
-			  RENDER_PALETTE_SUN, 0);
-	draw_rect(view, target, (IntRect){center - petal / 2, rect.y + rect.h * 3 / 4 - petal / 2, petal, petal},
-			  RENDER_PALETTE_SUN, 0);
-	draw_rect(view, target, (IntRect){rect.x + rect.w / 4 - petal / 2, rect.y + rect.h / 2 - petal / 2, petal, petal},
-			  RENDER_PALETTE_SUN, 0);
-	draw_rect(view, target,
-			  (IntRect){rect.x + rect.w * 3 / 4 - petal / 2, rect.y + rect.h / 2 - petal / 2, petal, petal},
-			  RENDER_PALETTE_SUN, 0);
-}
-
-static void draw_peashooter(RenderView *view, RenderTarget target, IntRect rect) {
-	const int body = rect.w / 4 > 0 ? rect.w / 4 : 1;
-	const int center = rect.x + rect.w / 2;
-	draw_rect(view, target, (IntRect){center - body / 2, rect.y + rect.h / 3, body, rect.h / 3}, RENDER_PALETTE_PLANT,
-			  0);
-	draw_rect(view, target, (IntRect){center, rect.y + rect.h / 4, rect.w / 3, rect.h / 4}, RENDER_PALETTE_PLANT, 0);
-	draw_rect(view, target,
-			  (IntRect){center + rect.w / 4, rect.y + rect.h / 3, rect.w / 10 > 0 ? rect.w / 10 : 1,
-						rect.h / 10 > 0 ? rect.h / 10 : 1},
-			  RENDER_PALETTE_BG, 0);
-	draw_rect(view, target,
-			  (IntRect){center - rect.w / 4, rect.y + rect.h * 3 / 4, rect.w / 6 > 0 ? rect.w / 6 : 1,
-						rect.h / 8 > 0 ? rect.h / 8 : 1},
-			  RENDER_PALETTE_PLANT, 0);
-	draw_rect(
-		view, target,
-		(IntRect){center, rect.y + rect.h * 3 / 4, rect.w / 6 > 0 ? rect.w / 6 : 1, rect.h / 8 > 0 ? rect.h / 8 : 1},
-		RENDER_PALETTE_PLANT, 0);
-}
-
-static void draw_wallnut(RenderView *view, RenderTarget target, IntRect rect) {
-	draw_rect(view, target, rect, RENDER_PALETTE_WALLNUT, 0);
-	draw_rect(view, target,
-			  (IntRect){rect.x + rect.w / 4, rect.y + rect.h / 3, rect.w / 10 > 0 ? rect.w / 10 : 1,
-						rect.h / 10 > 0 ? rect.h / 10 : 1},
-			  RENDER_PALETTE_TEXT, 0);
-	draw_rect(view, target,
-			  (IntRect){rect.x + rect.w * 3 / 5, rect.y + rect.h / 3, rect.w / 10 > 0 ? rect.w / 10 : 1,
-						rect.h / 10 > 0 ? rect.h / 10 : 1},
-			  RENDER_PALETTE_TEXT, 0);
-}
-
-static void draw_plant(RenderView *view, RenderTarget target, PlantType type, IntRect rect) {
-	switch (type) {
-	case PLANT_SUNFLOWER:
-		draw_sunflower(view, target, rect);
-		break;
-	case PLANT_PEASHOOTER:
-		draw_peashooter(view, target, rect);
-		break;
-	case PLANT_WALLNUT:
-		draw_wallnut(view, target, rect);
-		break;
-	case PLANT_NONE:
-	default:
-		break;
-	}
-}
-
-static void draw_zombie(RenderView *view, ZombieType type, IntRect rect) {
+static void draw_zombie_fallback(RenderView *view, ZombieType type, IntRect rect) {
 	const int head = rect.h / 4 > 0 ? rect.h / 4 : 1;
 	const int body_w = rect.w / 3 > 0 ? rect.w / 3 : 1;
 	const int body_x = rect.x + rect.w / 2 - body_w / 2;
@@ -330,6 +301,39 @@ static void draw_zombie(RenderView *view, ZombieType type, IntRect rect) {
 		draw_rect(view, RENDER_TARGET_BOARD, (IntRect){body_x - body_w / 5, rect.y, body_w + body_w / 3, head},
 				  RENDER_PALETTE_BUCKET, 0);
 	}
+}
+
+static const RenderSprite *select_zombie_sprite(const GameConfig *config, const Zombie *zombie) {
+	const ZombieSpriteSet *sprite_set;
+	const int max_health = pvz_zombie_max_health(config, zombie->type);
+	const int max_armor = pvz_zombie_max_armor(config, zombie->type);
+	const bool is_damaged = max_health > 0 && zombie->health <= max_health / 2;
+
+	sprite_set = render_assets_get_zombie_sprites(zombie->type);
+	if (!sprite_set) {
+		return NULL;
+	}
+
+	if (max_armor > 0 && zombie->armor > 0 && sprite_set->armored) {
+		return sprite_set->armored;
+	}
+	if (is_damaged && sprite_set->damaged) {
+		return sprite_set->damaged;
+	}
+	if (sprite_set->base) {
+		return sprite_set->base;
+	}
+	return sprite_set->damaged;
+}
+
+static void draw_zombie(RenderView *view, const GameConfig *config, const Zombie *zombie, IntRect rect) {
+	const RenderSprite *sprite = select_zombie_sprite(config, zombie);
+	if (sprite) {
+		draw_sprite(view, RENDER_TARGET_BOARD, sprite, rect.x, rect.y);
+		return;
+	}
+
+	draw_zombie_fallback(view, zombie->type, rect);
 }
 
 static void draw_projectile(RenderView *view, IntRect rect) {
@@ -402,6 +406,7 @@ static void draw_wave_progress(RenderView *view) {
 
 static void draw_card(RenderView *view, const GameConfig *config, int index, PlantType type) {
 	char buffer[16];
+	const RenderSprite *plant_sprite = render_assets_get_plant_sprite(type);
 
 	const int num_cards = 3;
 	const int margin = 10;
@@ -424,8 +429,8 @@ static void draw_card(RenderView *view, const GameConfig *config, int index, Pla
 	// Draw plant icon
 	const int icon_margin = 15;
 	const int icon_size = rect.w - icon_margin * 2;
-	const IntRect icon_rect = {.x = rect.x + icon_margin, .y = rect.y + 30, .w = icon_size, .h = icon_size};
-	draw_plant(view, RENDER_TARGET_HUD, type, icon_rect);
+	const IntRect icon_rect = {.x = rect.x + icon_margin, .y = rect.y + 16, .w = icon_size, .h = icon_size};
+	draw_sprite_scaled(view, RENDER_TARGET_HUD, plant_sprite, icon_rect);
 
 	// Plant index
 	snprintf(buffer, sizeof(buffer), "%d", index + 1);
@@ -452,7 +457,7 @@ void presentation_build_play_view(RenderView *view, const GameState *game, Rende
 	// Draw game
 	const int unit_size = board_unit_size(game->config);
 	const int plant_padding = unit_size / 8 > 0 ? unit_size / 8 : 1;
-	const int zombie_size = unit_size - unit_size / 5;
+	const int zombie_size = 8;
 	const int projectile_size = unit_size / 5 > 0 ? unit_size / 5 : 1;
 	const int sun_size = unit_size / 3 > 0 ? unit_size / 3 : 1;
 
@@ -481,8 +486,9 @@ void presentation_build_play_view(RenderView *view, const GameState *game, Rende
 			continue;
 		}
 		const Plant *plant = &game->plants[i];
-		draw_plant(view, RENDER_TARGET_BOARD, plant->type,
-				   board_cell_rect(game, plant->coord.row, plant->coord.col, plant_padding));
+		const RenderSprite *plant_sprite = render_assets_get_plant_sprite(plant->type);
+		const IntRect rect = board_cell_rect(game, plant->coord.row, plant->coord.col, plant_padding);
+		draw_sprite(view, RENDER_TARGET_BOARD, plant_sprite, rect.x, rect.y - 1);
 	}
 
 	for (int i = 0; i < PVZ_MAX_ZOMBIES; ++i) {
@@ -490,7 +496,7 @@ void presentation_build_play_view(RenderView *view, const GameState *game, Rende
 			continue;
 		}
 		const Zombie *zombie = &game->zombies[i];
-		draw_zombie(view, zombie->type,
+		draw_zombie(view, game->config, zombie,
 					board_entity_rect(game, (float)zombie->lane + 0.5f, zombie->x + 0.5f, zombie_size));
 	}
 

@@ -73,6 +73,24 @@ static Color palette_color(RenderPalette palette) {
 		return (Color){203, 72, 56, 255};
 	case RENDER_PALETTE_SUCCESS:
 		return (Color){65, 170, 95, 255};
+	case RENDER_PALETTE_ART_0:
+		return (Color){152, 170, 148, 255};
+	case RENDER_PALETTE_ART_1:
+		return (Color){64, 74, 66, 255};
+	case RENDER_PALETTE_ART_2:
+		return (Color){128, 93, 62, 255};
+	case RENDER_PALETTE_ART_3:
+		return (Color){84, 109, 138, 255};
+	case RENDER_PALETTE_ART_4:
+		return (Color){120, 40, 40, 255};
+	case RENDER_PALETTE_ART_5:
+		return (Color){61, 171, 87, 255};
+	case RENDER_PALETTE_ART_6:
+		return (Color){255, 161, 62, 255};
+	case RENDER_PALETTE_ART_7:
+		return (Color){169, 219, 109, 255};
+	case RENDER_PALETTE_ART_8:
+		return (Color){176, 121, 72, 255};
 	default:
 		return WHITE;
 	}

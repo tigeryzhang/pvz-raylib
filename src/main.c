@@ -30,7 +30,6 @@ static void apply_startup_config(GameConfig *config) {
 
 int main(int argc, char **argv) {
 	GameConfig config = pvz_make_default_config();
-	bool run_tests = false;
 	apply_startup_config(&config);
 
 	AppContext app;

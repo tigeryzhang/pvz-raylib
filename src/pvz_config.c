@@ -94,3 +94,28 @@ int pvz_plant_seed_cooldown(const GameConfig *config, PlantType type) {
 		return 0;
 	}
 }
+
+int pvz_zombie_max_health(const GameConfig *config, ZombieType type) {
+	switch (type) {
+	case ZOMBIE_CONE:
+		return config->cone_health;
+	case ZOMBIE_BUCKETHEAD:
+		return config->bucket_health;
+	case ZOMBIE_REGULAR:
+	default:
+		return config->zombie_health;
+	}
+}
+
+int pvz_zombie_max_armor(const GameConfig *config, ZombieType type) {
+	switch (type) {
+	case ZOMBIE_CONE:
+		return config->cone_armor;
+	case ZOMBIE_BUCKETHEAD:
+		return config->bucket_armor;
+	case ZOMBIE_REGULAR:
+	case ZOMBIE_NONE:
+	default:
+		return 0;
+	}
+}

@@ -89,3 +89,5 @@ bool pvz_rect_contains(IntRect rect, int x, int y);
 
 int pvz_plant_cost(const GameConfig *config, PlantType type);
 int pvz_plant_seed_cooldown(const GameConfig *config, PlantType type);
+int pvz_zombie_max_health(const GameConfig *config, ZombieType type);
+int pvz_zombie_max_armor(const GameConfig *config, ZombieType type);
