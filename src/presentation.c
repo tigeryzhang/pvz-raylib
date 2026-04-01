@@ -22,6 +22,35 @@ static const uint8_t letter_glyphs[26][5] = {
 	{5, 5, 2, 2, 2}, {7, 1, 2, 4, 7},
 };
 
+// clang-format off
+static const PaletteRgb palette_rgb[] = {
+	[RENDER_PALETTE_BG] = {26, 43, 26},
+	[RENDER_PALETTE_PANEL] = {233, 223, 187},
+	[RENDER_PALETTE_TILE_LIGHT] = {149, 196, 82},
+	[RENDER_PALETTE_TILE_DARK] = {122, 168, 62},
+	[RENDER_PALETTE_HIGHLIGHT] = {255, 208, 78},
+	[RENDER_PALETTE_TEXT] = {49, 46, 37},
+	[RENDER_PALETTE_SUN] = {255, 198, 48},
+	[RENDER_PALETTE_PLANT] = {42, 137, 59},
+	[RENDER_PALETTE_WALLNUT] = {141, 91, 46},
+	[RENDER_PALETTE_ZOMBIE] = {105, 118, 110},
+	[RENDER_PALETTE_CONE] = {235, 126, 34},
+	[RENDER_PALETTE_BUCKET] = {137, 149, 160},
+	[RENDER_PALETTE_PROJECTILE] = {80, 206, 68},
+	[RENDER_PALETTE_WARNING] = {203, 72, 56},
+	[RENDER_PALETTE_SUCCESS] = {65, 170, 95},
+	[RENDER_PALETTE_ART_0] = {152, 170, 148},
+	[RENDER_PALETTE_ART_1] = {64, 74, 66},
+	[RENDER_PALETTE_ART_2] = {128, 93, 62},
+	[RENDER_PALETTE_ART_3] = {84, 109, 138},
+	[RENDER_PALETTE_ART_4] = {120, 40, 40},
+	[RENDER_PALETTE_ART_5] = {61, 171, 87},
+	[RENDER_PALETTE_ART_6] = {255, 161, 62},
+	[RENDER_PALETTE_ART_7] = {169, 219, 109},
+	[RENDER_PALETTE_ART_8] = {176, 121, 72},
+};
+// clang-format on
+
 static IntRect board_cell_rect(const GameState *game, int row, int col, int padding) {
 	const int x0 = col * game->config->board_x_resolution / game->config->cols;
 	const int x1 = (col + 1) * game->config->board_x_resolution / game->config->cols;
@@ -402,6 +431,12 @@ static void draw_wave_progress(RenderView *view) {
 		draw_text_3x5(view, RENDER_TARGET_HUD, "HUGE WAVE INCOMING", warning_rect.x + 10, warning_rect.y + 4, 2,
 					  RENDER_PALETTE_PANEL);
 	}
+}
+
+uint16_t presentation_palette_to_rgb565(RenderPalette palette) {
+	const PaletteRgb color = palette_rgb[palette];
+	return (uint16_t)(((uint16_t)(color.r & 0xF8u) << 8) | ((uint16_t)(color.g & 0xFCu) << 3) |
+					  ((uint16_t)color.b >> 3));
 }
 
 static void draw_card(RenderView *view, const GameConfig *config, int index, PlantType type) {

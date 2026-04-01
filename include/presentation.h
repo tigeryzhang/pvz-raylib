@@ -6,6 +6,12 @@
 #include "game.h"
 #include "pvz_config.h"
 
+typedef struct {
+	uint8_t r;
+	uint8_t g;
+	uint8_t b;
+} PaletteRgb;
+
 typedef enum {
 	RENDER_PALETTE_BG = 0,
 	RENDER_PALETTE_PANEL,
@@ -71,6 +77,7 @@ typedef struct {
 } RenderView;
 
 void render_view_reset(RenderView *view);
+uint16_t presentation_palette_to_rgb565(RenderPalette palette);
 
 // Specific impls for each game scene
 void presentation_build_play_view(RenderView *view, const GameState *game, RenderStatus status);
