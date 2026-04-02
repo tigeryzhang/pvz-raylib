@@ -14,5 +14,5 @@ DisplaySettings set_display_settings(const GameConfig *config, int tile_size, in
 									 int hud_height);
 
 void raylib_poll_input(const AppContext *app, InputFrame *input);
-void raylib_render_view(AppContext *app, const RenderView *view);
+void raylib_render_view(AppContext *app);
 void raylib_frontend_shutdown(void);

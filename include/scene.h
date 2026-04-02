@@ -17,8 +17,8 @@ typedef struct Scene Scene;
 typedef struct {
 	void (*enter)(Scene *scene, struct AppContext *app);
 	void (*update)(Scene *scene, struct AppContext *app, const InputFrame *input, float frame_dt);
-	void (*build_view)(Scene *scene, struct AppContext *app, RenderView *view);
-	void (*render)(Scene *scene, struct AppContext *app, const RenderView *view);
+	void (*build_view)(Scene *scene, struct AppContext *app);
+	void (*render)(Scene *scene, struct AppContext *app);
 	void (*exit)(Scene *scene, struct AppContext *app);
 } SceneVTable;
 

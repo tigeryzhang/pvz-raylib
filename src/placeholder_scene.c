@@ -35,8 +35,8 @@ static void placeholder_scene_build_view(Scene *scene, AppContext *app, RenderVi
 
 static void placeholder_scene_render(Scene *scene, AppContext *app, const RenderView *view) {
 	(void)scene;
-	if (app->render_view) {
-		app->render_view(app, view);
+	if (app->render) {
+		app->render(app, view);
 	}
 }
 

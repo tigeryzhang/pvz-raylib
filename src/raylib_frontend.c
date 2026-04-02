@@ -219,8 +219,6 @@ static void draw_framebuffer_to_target(const RenderView *view, RenderTarget targ
 }
 
 void raylib_poll_input(const AppContext *app, InputFrame *input) {
-	input_frame_reset(input);
-
 	if (IsKeyPressed(KEY_ONE)) {
 		input_frame_push(input, (InputCommand){.type = INPUT_COMMAND_SELECT_CARD, .index = 0});
 	}
@@ -275,7 +273,7 @@ void raylib_poll_input(const AppContext *app, InputFrame *input) {
 	}
 }
 
-void raylib_render_view(AppContext *app, const RenderView *view) {
+void raylib_render_view(AppContext *app) {
 	ensure_render_targets(app);
 	ClearBackground(palette_color(RENDER_PALETTE_BG));
 
@@ -283,12 +281,12 @@ void raylib_render_view(AppContext *app, const RenderView *view) {
 		// Update textures with framebuffers
 		BeginTextureMode(frontend_state.board_target);
 		ClearBackground(palette_color(RENDER_PALETTE_BG));
-		draw_framebuffer_to_target(view, RENDER_TARGET_BOARD);
+		draw_framebuffer_to_target(&app->render_view, RENDER_TARGET_BOARD);
 		EndTextureMode();
 
 		BeginTextureMode(frontend_state.hud_target);
 		ClearBackground(palette_color(RENDER_PALETTE_BG));
-		draw_framebuffer_to_target(view, RENDER_TARGET_HUD);
+		draw_framebuffer_to_target(&app->render_view, RENDER_TARGET_HUD);
 		EndTextureMode();
 
 		// Draw textures to screen

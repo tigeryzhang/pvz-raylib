@@ -125,8 +125,8 @@ static void play_scene_build_view(Scene *scene, AppContext *app, RenderView *vie
 
 static void play_scene_render(Scene *scene, AppContext *app, const RenderView *view) {
 	(void)scene;
-	if (app->render_view) {
-		app->render_view(app, view);
+	if (app->render) {
+		app->render(app, view);
 	}
 }
 

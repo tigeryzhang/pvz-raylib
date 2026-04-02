@@ -39,17 +39,17 @@ int main(int argc, char **argv) {
 	SetConfigFlags(FLAG_VSYNC_HINT | FLAG_WINDOW_HIGHDPI);
 	InitWindow(display_settings.window_width, display_settings.window_height, "pvz-raylib mockup");
 	SetTargetFPS(60);
-	app.render_view = raylib_render_view;
 
+	RenderView view;
 	while (!WindowShouldClose() && !app.quit_requested) {
 		InputFrame input;
-		RenderView view;
+		input_frame_reset(&input);
 		raylib_poll_input(&app, &input);
 		app_update(&app, &input, GetFrameTime());
-		app_build_view(&app, &view);
+		app_build_view(&app);
 
 		BeginDrawing();
-		app_render(&app, &view);
+		raylib_render_view(&app);
 		EndDrawing();
 	}
 

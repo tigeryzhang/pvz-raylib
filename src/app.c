@@ -66,14 +66,8 @@ void app_update(AppContext *app, const InputFrame *input, float frame_dt) {
 	}
 }
 
-void app_build_view(AppContext *app, RenderView *view) {
+void app_build_view(AppContext *app) {
 	if (app->active_scene && app->active_scene->vtable && app->active_scene->vtable->build_view) {
-		app->active_scene->vtable->build_view(app->active_scene, app, view);
-	}
-}
-
-void app_render(AppContext *app, const RenderView *view) {
-	if (app->active_scene && app->active_scene->vtable && app->active_scene->vtable->render) {
-		app->active_scene->vtable->render(app->active_scene, app, view);
+		app->active_scene->vtable->build_view(app->active_scene, app);
 	}
 }
