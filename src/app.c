@@ -1,4 +1,5 @@
 #include "app.h"
+#include "presentation.h"
 
 #include <string.h>
 
@@ -53,9 +54,9 @@ void app_init(AppContext *app, const GameConfig *config) {
 
 void app_shutdown(AppContext *app) { (void)app; }
 
-void app_update(AppContext *app, const InputFrame *input, float frame_dt) {
+UpdateResult app_update(AppContext *app, const InputFrame *input, float frame_dt) {
 	if (!app->active_scene || !app->active_scene->vtable || !app->active_scene->vtable->update) {
-		return;
+		return UPDATE_FAILED;
 	}
 
 	app->active_scene->vtable->update(app->active_scene, app, input, frame_dt);
@@ -63,11 +64,20 @@ void app_update(AppContext *app, const InputFrame *input, float frame_dt) {
 		const SceneId next_scene = app->active_scene->requested_scene;
 		app->active_scene->requested_scene = SCENE_ID_NONE;
 		app_request_scene(app, next_scene);
+		return UPDATE_CHANGED_SCENE;
+	}
+
+	return UPDATE_NONE;
+}
+
+void app_prerender(AppContext *app, RenderView *view) {
+	if (app->active_scene && app->active_scene->vtable && app->active_scene->vtable->prerender) {
+		app->active_scene->vtable->prerender(app->active_scene, app, view);
 	}
 }
 
-void app_build_view(AppContext *app) {
-	if (app->active_scene && app->active_scene->vtable && app->active_scene->vtable->build_view) {
-		app->active_scene->vtable->build_view(app->active_scene, app);
+void app_render(AppContext *app, RenderView *view) {
+	if (app->active_scene && app->active_scene->vtable && app->active_scene->vtable->render) {
+		app->active_scene->vtable->render(app->active_scene, app, view);
 	}
 }

@@ -3,6 +3,7 @@
 #include <string.h>
 
 #include "app.h"
+#include "presentation.h"
 #include "raylib.h"
 #include "raylib_frontend.h"
 
@@ -33,23 +34,29 @@ int main(int argc, char **argv) {
 	apply_startup_config(&config);
 
 	AppContext app;
-	DisplaySettings display_settings = set_display_settings(&config, 88, 12, 480, 320);
-
+	RenderView view;
 	app_init(&app, &config);
+	render_view_init(&view, config.board_x_resolution, config.board_y_resolution, config.hud_x_resolution,
+					 config.hud_y_resolution);
+
+	app_prerender(&app, &view);
+
+	DisplaySettings display_settings = set_display_settings(&config, 88, 12, 480, 320);
 	SetConfigFlags(FLAG_VSYNC_HINT | FLAG_WINDOW_HIGHDPI);
 	InitWindow(display_settings.window_width, display_settings.window_height, "pvz-raylib mockup");
 	SetTargetFPS(60);
 
-	RenderView view;
 	while (!WindowShouldClose() && !app.quit_requested) {
 		InputFrame input;
 		input_frame_reset(&input);
 		raylib_poll_input(&app, &input);
-		app_update(&app, &input, GetFrameTime());
-		app_build_view(&app);
+		if (app_update(&app, &input, GetFrameTime()) == UPDATE_CHANGED_SCENE) {
+			app_prerender(&app, &view);
+		}
+		// app_render(&app, &view);
 
 		BeginDrawing();
-		raylib_render_view(&app);
+		raylib_render_view(&app, &view);
 		EndDrawing();
 	}
 

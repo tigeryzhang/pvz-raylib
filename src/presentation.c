@@ -1,4 +1,5 @@
 #include "presentation.h"
+#include "game.h"
 #include "game_types.h"
 #include "pvz_config.h"
 #include "pvz_utils.h"
@@ -101,31 +102,6 @@ static int text_width_3x5(const char *text, int scale) {
 	return count > 0 ? count * scale * 4 - scale : 0;
 }
 
-void render_view_reset(RenderView *view) {
-	if (!view) {
-		return;
-	}
-	memset(view, 0, sizeof(*view));
-}
-
-static void render_view_begin(RenderView *view, int board_width, int board_height, int hud_width, int hud_height,
-							  RenderPalette clear_color) {
-	if (!view) {
-		return;
-	}
-
-	render_view_reset(view);
-
-	view->board_width = clamp_int(board_width, 1, PVZ_MAX_BOARD_WIDTH);
-	view->board_height = clamp_int(board_height, 1, PVZ_MAX_BOARD_HEIGHT);
-
-	view->hud_width = clamp_int(hud_width, 1, PVZ_MAX_HUD_WIDTH);
-	view->hud_height = clamp_int(hud_height, 1, PVZ_MAX_HUD_HEIGHT);
-
-	memset(view->board_pixels, (unsigned char)clear_color, (size_t)view->board_width * (size_t)view->board_height);
-	memset(view->hud_pixels, (unsigned char)clear_color, (size_t)view->hud_width * (size_t)view->hud_height);
-}
-
 static bool render_view_contains(const RenderView *view, RenderTarget target, int x, int y) {
 	if (!view) {
 		return false;
@@ -135,7 +111,26 @@ static bool render_view_contains(const RenderView *view, RenderTarget target, in
 	return x >= 0 && y >= 0 && x < w && y < h;
 }
 
+static void clear_target(RenderView *view, RenderTarget target, RenderPalette clear_color) {
+	if (!view) {
+		return;
+	}
+
+	switch (target) {
+	case RENDER_TARGET_BOARD:
+		memset(view->board_pixels, (unsigned char)clear_color, (size_t)view->board_width * (size_t)view->board_height);
+		break;
+	case RENDER_TARGET_HUD:
+		memset(view->hud_pixels, (unsigned char)clear_color, (size_t)view->hud_width * (size_t)view->hud_height);
+		break;
+	}
+}
+
 static uint8_t *get_pixels(RenderView *view, RenderTarget target) {
+	if (!view) {
+		return NULL;
+	}
+
 	switch (target) {
 	case RENDER_TARGET_BOARD:
 		return view->board_pixels;
@@ -433,12 +428,6 @@ static void draw_wave_progress(RenderView *view) {
 	}
 }
 
-uint16_t presentation_palette_to_rgb565(RenderPalette palette) {
-	const PaletteRgb color = palette_rgb[palette];
-	return (uint16_t)(((uint16_t)(color.r & 0xF8u) << 8) | ((uint16_t)(color.g & 0xFCu) << 3) |
-					  ((uint16_t)color.b >> 3));
-}
-
 static void draw_card(RenderView *view, const GameConfig *config, int index, PlantType type) {
 	char buffer[16];
 	const RenderSprite *plant_sprite = render_assets_get_plant_sprite(type);
@@ -486,20 +475,14 @@ static void draw_card(RenderView *view, const GameConfig *config, int index, Pla
 				  RENDER_PALETTE_SUN);
 }
 
-void presentation_build_play_view(RenderView *view, const GameState *game, RenderStatus status) {
+void render_view_update(RenderView *view, const GameState *game, RenderStatus status) {
+	if (!view) {
+		return;
+	}
+
 	GameWaveStatus wave_status;
-
-	// Draw game
-	const int unit_size = board_unit_size(game->config);
-	const int plant_padding = unit_size / 8 > 0 ? unit_size / 8 : 1;
-	const int zombie_size = 8;
-	const int projectile_size = unit_size / 5 > 0 ? unit_size / 5 : 1;
-	const int sun_size = unit_size / 3 > 0 ? unit_size / 3 : 1;
-
 	game_get_wave_status(game, &wave_status);
 
-	render_view_begin(view, game->config->board_x_resolution, game->config->board_y_resolution,
-					  game->config->hud_x_resolution, game->config->hud_y_resolution, RENDER_PALETTE_BG);
 	view->selected_plant = game->selected_plant;
 	memcpy(view->seed_cooldowns, game->seed_cooldowns, sizeof(game->seed_cooldowns));
 	view->sun_count = game->sun_count;
@@ -513,6 +496,36 @@ void presentation_build_play_view(RenderView *view, const GameState *game, Rende
 	view->flag_marker_count = wave_status.flag_marker_count;
 	memcpy(view->flag_marker_progress, wave_status.flag_marker_progress, sizeof(wave_status.flag_marker_progress));
 	view->status = status;
+}
+
+uint16_t presentation_palette_to_rgb565(RenderPalette palette) {
+	const PaletteRgb color = palette_rgb[palette];
+	return (uint16_t)(((uint16_t)(color.r & 0xF8u) << 8) | ((uint16_t)(color.g & 0xFCu) << 3) |
+					  ((uint16_t)color.b >> 3));
+}
+
+void dirty_rect_list_clear(DirtyRectList *rects) { rects->count = 0; }
+
+void render_view_init(RenderView *view, int board_width, int board_height, int hud_width, int hud_height) {
+	if (!view) {
+		return;
+	}
+
+	view->board_width = clamp_int(board_width, 1, PVZ_MAX_BOARD_WIDTH);
+	view->board_height = clamp_int(board_height, 1, PVZ_MAX_BOARD_HEIGHT);
+
+	view->hud_width = clamp_int(hud_width, 1, PVZ_MAX_HUD_WIDTH);
+	view->hud_height = clamp_int(hud_height, 1, PVZ_MAX_HUD_HEIGHT);
+}
+
+void presentation_prerender_play_view(RenderView *view, const GameState *game) {
+	const int unit_size = board_unit_size(game->config);
+	const int plant_padding = unit_size / 8 > 0 ? unit_size / 8 : 1;
+	const int zombie_size = 8;
+	const int projectile_size = unit_size / 5 > 0 ? unit_size / 5 : 1;
+	const int sun_size = unit_size / 3 > 0 ? unit_size / 3 : 1;
+
+	render_view_update(view, game, RENDER_STATUS_NONE);
 
 	draw_tile_checkerboard(view, game);
 
@@ -565,9 +578,70 @@ void presentation_build_play_view(RenderView *view, const GameState *game, Rende
 	draw_card(view, game->config, 2, PLANT_WALLNUT);
 }
 
-void presentation_build_placeholder_view(RenderView *view, const GameConfig *config) {
-	render_view_begin(view, config->board_x_resolution, config->board_y_resolution, config->hud_x_resolution,
-					  config->hud_y_resolution, RENDER_PALETTE_BG);
+void presentation_render_play_view(RenderView *view, const GameState *game, RenderStatus status) {
+	// Draw game
+	const int unit_size = board_unit_size(game->config);
+	const int plant_padding = unit_size / 8 > 0 ? unit_size / 8 : 1;
+	const int zombie_size = 8;
+	const int projectile_size = unit_size / 5 > 0 ? unit_size / 5 : 1;
+	const int sun_size = unit_size / 3 > 0 ? unit_size / 3 : 1;
+
+	render_view_update(view, game, status);
+
+	draw_tile_checkerboard(view, game);
+
+	for (int i = 0; i < PVZ_MAX_PLANTS; ++i) {
+		if (!game->plants[i].active) {
+			continue;
+		}
+		const Plant *plant = &game->plants[i];
+		const RenderSprite *plant_sprite = render_assets_get_plant_sprite(plant->type);
+		const IntRect rect = board_cell_rect(game, plant->coord.row, plant->coord.col, plant_padding);
+		draw_sprite(view, RENDER_TARGET_BOARD, plant_sprite, rect.x, rect.y - 1);
+	}
+
+	for (int i = 0; i < PVZ_MAX_ZOMBIES; ++i) {
+		if (!game->zombies[i].active) {
+			continue;
+		}
+		const Zombie *zombie = &game->zombies[i];
+		draw_zombie(view, game->config, zombie,
+					board_entity_rect(game, (float)zombie->lane + 0.5f, zombie->x + 0.5f, zombie_size));
+	}
+
+	for (int i = 0; i < PVZ_MAX_PROJECTILES; ++i) {
+		if (!game->projectiles[i].active) {
+			continue;
+		}
+		draw_projectile(view, board_entity_rect(game, (float)game->projectiles[i].lane + 0.5f,
+												game->projectiles[i].x + 0.1f, projectile_size));
+	}
+
+	for (int i = 0; i < PVZ_MAX_SUNS; ++i) {
+		if (!game->suns[i].active) {
+			continue;
+		}
+		draw_sun(view, RENDER_TARGET_BOARD, board_entity_rect(game, game->suns[i].y, game->suns[i].x, sun_size));
+	}
+
+	// Draw hud
+	draw_rect(view, RENDER_TARGET_HUD, (IntRect){.x = 0, .y = 0, .w = view->hud_width, .h = view->hud_width},
+			  RENDER_PALETTE_PANEL, 0);
+
+	// Sun
+	char buffer[10];
+	snprintf(buffer, sizeof(buffer), "SUN: %d", view->sun_count);
+	draw_text_3x5(view, RENDER_TARGET_HUD, buffer, 10, 10, 3, RENDER_PALETTE_TEXT);
+	draw_wave_progress(view);
+
+	draw_card(view, game->config, 0, PLANT_SUNFLOWER);
+	draw_card(view, game->config, 1, PLANT_PEASHOOTER);
+	draw_card(view, game->config, 2, PLANT_WALLNUT);
+}
+
+void presentation_render_placeholder_view(RenderView *view, const GameConfig *config) {
+	clear_target(view, RENDER_TARGET_BOARD, RENDER_PALETTE_BG);
+	clear_target(view, RENDER_TARGET_HUD, RENDER_PALETTE_BG);
 	view->status = RENDER_STATUS_PLACEHOLDER;
 
 	for (int y = 0; y < view->board_height; ++y) {

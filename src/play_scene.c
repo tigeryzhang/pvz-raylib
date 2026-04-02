@@ -1,4 +1,5 @@
 #include "app.h"
+#include "presentation.h"
 
 #include <string.h>
 
@@ -117,17 +118,16 @@ static void play_scene_update(Scene *scene, AppContext *app, const InputFrame *i
 	}
 }
 
-static void play_scene_build_view(Scene *scene, AppContext *app, RenderView *view) {
+static void play_scene_prerender(Scene *scene, AppContext *app, RenderView *view) {
 	PlaySceneState *state = (PlaySceneState *)scene->state;
 	(void)app;
-	presentation_build_play_view(view, &state->game, state->status);
+	presentation_prerender_play_view(view, &state->game);
 }
 
-static void play_scene_render(Scene *scene, AppContext *app, const RenderView *view) {
-	(void)scene;
-	if (app->render) {
-		app->render(app, view);
-	}
+static void play_scene_render(Scene *scene, AppContext *app, RenderView *view) {
+	PlaySceneState *state = (PlaySceneState *)scene->state;
+	(void)app;
+	presentation_render_play_view(view, &state->game, state->status);
 }
 
 static void play_scene_exit(Scene *scene, AppContext *app) {
@@ -139,7 +139,7 @@ void play_scene_configure(Scene *scene, PlaySceneState *state) {
 	static const SceneVTable vtable = {
 		.enter = play_scene_enter,
 		.update = play_scene_update,
-		.build_view = play_scene_build_view,
+		.prerender = play_scene_prerender,
 		.render = play_scene_render,
 		.exit = play_scene_exit,
 	};

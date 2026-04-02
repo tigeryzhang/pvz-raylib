@@ -1,4 +1,5 @@
 #include "app.h"
+#include "presentation.h"
 
 static void placeholder_scene_enter(Scene *scene, AppContext *app) {
 	(void)app;
@@ -30,14 +31,7 @@ static void placeholder_scene_update(Scene *scene, AppContext *app, const InputF
 
 static void placeholder_scene_build_view(Scene *scene, AppContext *app, RenderView *view) {
 	(void)scene;
-	presentation_build_placeholder_view(view, &app->config);
-}
-
-static void placeholder_scene_render(Scene *scene, AppContext *app, const RenderView *view) {
-	(void)scene;
-	if (app->render) {
-		app->render(app, view);
-	}
+	presentation_render_placeholder_view(view, &app->config);
 }
 
 static void placeholder_scene_exit(Scene *scene, AppContext *app) {
@@ -49,8 +43,7 @@ void placeholder_scene_configure(Scene *scene, PlaceholderSceneState *state) {
 	static const SceneVTable vtable = {
 		.enter = placeholder_scene_enter,
 		.update = placeholder_scene_update,
-		.build_view = placeholder_scene_build_view,
-		.render = placeholder_scene_render,
+		.render = placeholder_scene_build_view,
 		.exit = placeholder_scene_exit,
 	};
 

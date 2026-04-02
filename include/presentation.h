@@ -4,6 +4,7 @@
 #include <stdint.h>
 
 #include "game.h"
+#include "game_types.h"
 #include "pvz_config.h"
 
 typedef struct {
@@ -54,13 +55,21 @@ typedef enum {
 
 typedef enum { RENDER_TARGET_BOARD = 0, RENDER_TARGET_HUD } RenderTarget;
 
+#define MAX_DIRTY_RECTS 32
+typedef struct {
+	IntRect rects[MAX_DIRTY_RECTS];
+	int count;
+} DirtyRectList;
+
 typedef struct {
 	int board_width;
 	int board_height;
 	uint8_t board_pixels[PVZ_MAX_BOARD_PIXELS];
+	DirtyRectList board_dirty_rects;
 	int hud_width;
 	int hud_height;
 	uint8_t hud_pixels[PVZ_MAX_HUD_PIXELS];
+	DirtyRectList hud_dirty_rects;
 	PlantType selected_plant;
 	float seed_cooldowns[3];
 	int sun_count;
@@ -76,9 +85,13 @@ typedef struct {
 	RenderStatus status;
 } RenderView;
 
-void render_view_reset(RenderView *view);
+void render_view_init(RenderView *view, int board_width, int board_height, int hud_width, int hud_height);
+void render_view_update(RenderView *view, const GameState *game, RenderStatus status);
 uint16_t presentation_palette_to_rgb565(RenderPalette palette);
 
+void dirty_rect_list_clear(DirtyRectList *rects);
+
 // Specific impls for each game scene
-void presentation_build_play_view(RenderView *view, const GameState *game, RenderStatus status);
-void presentation_build_placeholder_view(RenderView *view, const GameConfig *config);
+void presentation_prerender_play_view(RenderView *view, const GameState *game);
+void presentation_render_play_view(RenderView *view, const GameState *game, RenderStatus status);
+void presentation_render_placeholder_view(RenderView *view, const GameConfig *config);

@@ -2,6 +2,7 @@
 
 #include "app.h"
 #include "input.h"
+#include "presentation.h"
 
 typedef struct {
 	int window_width;
@@ -14,5 +15,5 @@ DisplaySettings set_display_settings(const GameConfig *config, int tile_size, in
 									 int hud_height);
 
 void raylib_poll_input(const AppContext *app, InputFrame *input);
-void raylib_render_view(AppContext *app);
+void raylib_render_view(AppContext *app, RenderView *view);
 void raylib_frontend_shutdown(void);
