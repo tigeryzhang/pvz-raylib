@@ -33,8 +33,8 @@ typedef struct AppContext {
 void app_init(AppContext *app, const GameConfig *config);
 void app_shutdown(AppContext *app);
 UpdateResult app_update(AppContext *app, const InputFrame *input, float frame_dt);
-void app_prerender(AppContext *app, RenderView *view);
-void app_render(AppContext *app, RenderView *view);
+void app_prerender(AppContext *app, RenderView *view, RenderData *data);
+void app_render(AppContext *app, RenderView *view, RenderData *data);
 void app_request_scene(AppContext *app, SceneId next_scene);
 void play_scene_configure(Scene *scene, PlaySceneState *state);
 void placeholder_scene_configure(Scene *scene, PlaceholderSceneState *state);

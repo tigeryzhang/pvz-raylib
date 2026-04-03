@@ -70,6 +70,9 @@ typedef struct {
 	int hud_height;
 	uint8_t hud_pixels[PVZ_MAX_HUD_PIXELS];
 	DirtyRectList hud_dirty_rects;
+} RenderView;
+
+typedef struct {
 	PlantType selected_plant;
 	float seed_cooldowns[3];
 	int sun_count;
@@ -83,15 +86,24 @@ typedef struct {
 	uint8_t flag_marker_count;
 	uint8_t flag_marker_progress[PVZ_MAX_WAVE_FLAG_MARKERS];
 	RenderStatus status;
-} RenderView;
+} FrameData;
+
+typedef struct {
+	bool prev_frame_valid;
+	FrameData prev_frame;
+	FrameData frame;
+} RenderData;
 
 void render_view_init(RenderView *view, int board_width, int board_height, int hud_width, int hud_height);
-void render_view_update(RenderView *view, const GameState *game, RenderStatus status);
+void render_view_begin(RenderView *view);
+
+void render_data_init(RenderData *data);
+void render_data_update(RenderData *data, const GameState *game, RenderStatus status);
 uint16_t presentation_palette_to_rgb565(RenderPalette palette);
 
 void dirty_rect_list_clear(DirtyRectList *rects);
 
 // Specific impls for each game scene
-void presentation_prerender_play_view(RenderView *view, const GameState *game);
-void presentation_render_play_view(RenderView *view, const GameState *game, RenderStatus status);
+void presentation_prerender_play_view(RenderView *view, RenderData *data, const GameState *game);
+void presentation_render_play_view(RenderView *view, RenderData *data, const GameState *game, RenderStatus status);
 void presentation_render_placeholder_view(RenderView *view, const GameConfig *config);

@@ -70,14 +70,14 @@ UpdateResult app_update(AppContext *app, const InputFrame *input, float frame_dt
 	return UPDATE_NONE;
 }
 
-void app_prerender(AppContext *app, RenderView *view) {
+void app_prerender(AppContext *app, RenderView *view, RenderData *data) {
 	if (app->active_scene && app->active_scene->vtable && app->active_scene->vtable->prerender) {
-		app->active_scene->vtable->prerender(app->active_scene, app, view);
+		app->active_scene->vtable->prerender(app->active_scene, app, view, data);
 	}
 }
 
-void app_render(AppContext *app, RenderView *view) {
+void app_render(AppContext *app, RenderView *view, RenderData *data) {
 	if (app->active_scene && app->active_scene->vtable && app->active_scene->vtable->render) {
-		app->active_scene->vtable->render(app->active_scene, app, view);
+		app->active_scene->vtable->render(app->active_scene, app, view, data);
 	}
 }

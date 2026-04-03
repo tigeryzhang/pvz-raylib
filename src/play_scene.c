@@ -118,16 +118,16 @@ static void play_scene_update(Scene *scene, AppContext *app, const InputFrame *i
 	}
 }
 
-static void play_scene_prerender(Scene *scene, AppContext *app, RenderView *view) {
+static void play_scene_prerender(Scene *scene, AppContext *app, RenderView *view, RenderData *data) {
 	PlaySceneState *state = (PlaySceneState *)scene->state;
 	(void)app;
-	presentation_prerender_play_view(view, &state->game);
+	presentation_prerender_play_view(view, data, &state->game);
 }
 
-static void play_scene_render(Scene *scene, AppContext *app, RenderView *view) {
+static void play_scene_render(Scene *scene, AppContext *app, RenderView *view, RenderData *data) {
 	PlaySceneState *state = (PlaySceneState *)scene->state;
 	(void)app;
-	presentation_render_play_view(view, &state->game, state->status);
+	presentation_render_play_view(view, data, &state->game, state->status);
 }
 
 static void play_scene_exit(Scene *scene, AppContext *app) {

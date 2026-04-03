@@ -34,12 +34,15 @@ int main(int argc, char **argv) {
 	apply_startup_config(&config);
 
 	AppContext app;
-	RenderView view;
 	app_init(&app, &config);
+
+	RenderView view;
+	RenderData data;
 	render_view_init(&view, config.board_x_resolution, config.board_y_resolution, config.hud_x_resolution,
 					 config.hud_y_resolution);
+	render_data_init(&data);
 
-	app_prerender(&app, &view);
+	app_prerender(&app, &view, &data);
 
 	DisplaySettings display_settings = set_display_settings(&config, 88, 12, 480, 320);
 	SetConfigFlags(FLAG_VSYNC_HINT | FLAG_WINDOW_HIGHDPI);
@@ -51,9 +54,9 @@ int main(int argc, char **argv) {
 		input_frame_reset(&input);
 		raylib_poll_input(&app, &input);
 		if (app_update(&app, &input, GetFrameTime()) == UPDATE_CHANGED_SCENE) {
-			app_prerender(&app, &view);
+			app_prerender(&app, &view, &data);
 		}
-		// app_render(&app, &view);
+		app_render(&app, &view, &data);
 
 		BeginDrawing();
 		raylib_render_view(&app, &view);

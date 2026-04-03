@@ -29,8 +29,9 @@ static void placeholder_scene_update(Scene *scene, AppContext *app, const InputF
 	}
 }
 
-static void placeholder_scene_build_view(Scene *scene, AppContext *app, RenderView *view) {
+static void placeholder_scene_build_view(Scene *scene, AppContext *app, RenderView *view, RenderData *data) {
 	(void)scene;
+	(void)data;
 	presentation_render_placeholder_view(view, &app->config);
 }
 
