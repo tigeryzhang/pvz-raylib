@@ -6,6 +6,7 @@
 #include "game.h"
 #include "game_types.h"
 #include "pvz_config.h"
+#include "pvz_rect.h"
 
 typedef struct {
 	uint8_t r;
@@ -55,7 +56,7 @@ typedef enum {
 
 typedef enum { RENDER_TARGET_BOARD = 0, RENDER_TARGET_HUD } RenderTarget;
 
-#define MAX_DIRTY_RECTS 32
+#define MAX_DIRTY_RECTS 128
 typedef struct {
 	IntRect rects[MAX_DIRTY_RECTS];
 	int count;

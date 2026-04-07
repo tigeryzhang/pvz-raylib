@@ -63,10 +63,6 @@ void pvz_clamp_config(GameConfig *config) {
 	}
 }
 
-bool pvz_rect_contains(IntRect rect, int x, int y) {
-	return x >= rect.x && x < rect.x + rect.w && y >= rect.y && y < rect.y + rect.h;
-}
-
 int pvz_plant_cost(const GameConfig *config, PlantType type) {
 	switch (type) {
 	case PLANT_SUNFLOWER:

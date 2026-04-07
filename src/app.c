@@ -71,12 +71,14 @@ UpdateResult app_update(AppContext *app, const InputFrame *input, float frame_dt
 }
 
 void app_prerender(AppContext *app, RenderView *view, RenderData *data) {
+	render_view_begin(view);
 	if (app->active_scene && app->active_scene->vtable && app->active_scene->vtable->prerender) {
 		app->active_scene->vtable->prerender(app->active_scene, app, view, data);
 	}
 }
 
 void app_render(AppContext *app, RenderView *view, RenderData *data) {
+	render_view_begin(view);
 	if (app->active_scene && app->active_scene->vtable && app->active_scene->vtable->render) {
 		app->active_scene->vtable->render(app->active_scene, app, view, data);
 	}

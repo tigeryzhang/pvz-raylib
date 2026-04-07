@@ -44,7 +44,7 @@ void placeholder_scene_configure(Scene *scene, PlaceholderSceneState *state) {
 	static const SceneVTable vtable = {
 		.enter = placeholder_scene_enter,
 		.update = placeholder_scene_update,
-		.render = placeholder_scene_build_view,
+		.prerender = placeholder_scene_build_view,
 		.exit = placeholder_scene_exit,
 	};
 

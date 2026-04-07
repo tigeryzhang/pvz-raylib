@@ -43,6 +43,7 @@ int main(int argc, char **argv) {
 	render_data_init(&data);
 
 	app_prerender(&app, &view, &data);
+	bool skip_live_render = true;
 
 	DisplaySettings display_settings = set_display_settings(&config, 88, 12, 480, 320);
 	SetConfigFlags(FLAG_VSYNC_HINT | FLAG_WINDOW_HIGHDPI);
@@ -55,8 +56,13 @@ int main(int argc, char **argv) {
 		raylib_poll_input(&app, &input);
 		if (app_update(&app, &input, GetFrameTime()) == UPDATE_CHANGED_SCENE) {
 			app_prerender(&app, &view, &data);
+			skip_live_render = true;
 		}
-		app_render(&app, &view, &data);
+		if (!skip_live_render) {
+			app_render(&app, &view, &data);
+		} else {
+			skip_live_render = false;
+		}
 
 		BeginDrawing();
 		raylib_render_view(&app, &view);

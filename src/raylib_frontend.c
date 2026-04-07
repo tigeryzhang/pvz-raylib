@@ -8,16 +8,18 @@
 
 typedef struct {
 	DisplaySettings display_settings;
-	RenderTexture2D board_target;
+	Texture2D board_texture;
 	int board_width;
 	int board_height;
-	RenderTexture2D hud_target;
+	Texture2D hud_texture;
 	int hud_width;
 	int hud_height;
 	bool loaded;
 } FrontendState;
 
 static FrontendState frontend_state = {0};
+static Color board_upload_buffer[PVZ_MAX_BOARD_PIXELS];
+static Color hud_upload_buffer[PVZ_MAX_HUD_PIXELS];
 
 DisplaySettings set_display_settings(const GameConfig *config, int tile_size, int margin, int hud_width,
 									 int hud_height) {
@@ -96,6 +98,14 @@ static Color palette_color(RenderPalette palette) {
 	}
 }
 
+static Texture2D create_texture(int width, int height, Color clear) {
+	Image image = GenImageColor(width, height, clear);
+	Texture2D texture = LoadTextureFromImage(image);
+	UnloadImage(image);
+	SetTextureFilter(texture, TEXTURE_FILTER_POINT);
+	return texture;
+}
+
 static void ensure_render_targets(const AppContext *app) {
 	const int board_width = app->config.board_x_resolution;
 	const int board_height = app->config.board_y_resolution;
@@ -113,15 +123,13 @@ static void ensure_render_targets(const AppContext *app) {
 	}
 
 	if (frontend_state.loaded) {
-		UnloadRenderTexture(frontend_state.board_target);
-		UnloadRenderTexture(frontend_state.hud_target);
+		UnloadTexture(frontend_state.board_texture);
+		UnloadTexture(frontend_state.hud_texture);
 		frontend_state = (FrontendState){0};
 	}
 
-	frontend_state.board_target = LoadRenderTexture(board_width, board_height);
-	frontend_state.hud_target = LoadRenderTexture(hud_width, hud_height);
-	SetTextureFilter(frontend_state.board_target.texture, TEXTURE_FILTER_POINT);
-	SetTextureFilter(frontend_state.hud_target.texture, TEXTURE_FILTER_POINT);
+	frontend_state.board_texture = create_texture(board_width, board_height, palette_color(RENDER_PALETTE_BG));
+	frontend_state.hud_texture = create_texture(hud_width, hud_height, palette_color(RENDER_PALETTE_BG));
 	frontend_state.board_width = board_width;
 	frontend_state.board_height = board_height;
 	frontend_state.hud_width = hud_width;
@@ -141,14 +149,26 @@ static BoardCoord screen_to_board(const AppContext *app, int x, int y) {
 	return coord;
 }
 
-static void draw_framebuffer_to_target(const RenderView *view, RenderTarget target) {
+static void upload_dirty_rects(const RenderView *view, RenderTarget target) {
 	const uint8_t *pixels = target == RENDER_TARGET_BOARD ? view->board_pixels : view->hud_pixels;
 	const int width = target == RENDER_TARGET_BOARD ? view->board_width : view->hud_width;
-	const int height = target == RENDER_TARGET_BOARD ? view->board_height : view->hud_height;
-	for (int y = 0; y < height; ++y) {
-		for (int x = 0; x < width; ++x) {
-			DrawPixel(x, y, palette_color(pixels[y * width + x]));
+	const DirtyRectList *rects = target == RENDER_TARGET_BOARD ? &view->board_dirty_rects : &view->hud_dirty_rects;
+	Texture2D texture = target == RENDER_TARGET_BOARD ? frontend_state.board_texture : frontend_state.hud_texture;
+	Color *upload_buffer = target == RENDER_TARGET_BOARD ? board_upload_buffer : hud_upload_buffer;
+
+	for (int i = 0; i < rects->count; ++i) {
+		const IntRect rect = rects->rects[i];
+		int write_index = 0;
+
+		for (int y = 0; y < rect.h; ++y) {
+			const int src_row = rect.y + y;
+			for (int x = 0; x < rect.w; ++x) {
+				const int src_col = rect.x + x;
+				upload_buffer[write_index++] = palette_color((RenderPalette)pixels[src_row * width + src_col]);
+			}
 		}
+
+		UpdateTextureRec(texture, (Rectangle){(float)rect.x, (float)rect.y, (float)rect.w, (float)rect.h}, upload_buffer);
 	}
 }
 
@@ -180,23 +200,10 @@ void raylib_poll_input(const AppContext *app, InputFrame *input) {
 	const int mouse_y = (int)mouse.y;
 
 	if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
-		// bool handled = false;
-		// // Handle input consumption for ui
-		// for (int index = 0; index < 3; ++index) {
-		// 	const IntRect card = pvz_get_card_rect(&app->display_settings, index);
-		// 	if (pvz_rect_contains(card, mouse_x, mouse_y)) {
-		// 		input_frame_push(input, (InputCommand){.type = INPUT_COMMAND_SELECT_CARD, .index = index});
-		// 		handled = true;
-		// 		break;
-		// 	}
-		// }
-
-		// if (!handled) {
 		const BoardCoord coord = screen_to_board(app, mouse_x, mouse_y);
 		if (coord.row >= 0) {
 			input_frame_push(input, (InputCommand){.type = INPUT_COMMAND_PLACE_TILE, .coord = coord});
 		}
-		// }
 	}
 
 	if (IsMouseButtonPressed(MOUSE_BUTTON_RIGHT)) {
@@ -212,36 +219,19 @@ void raylib_render_view(AppContext *app, RenderView *view) {
 	ClearBackground(palette_color(RENDER_PALETTE_BG));
 
 	if (frontend_state.loaded) {
-		// Update textures with framebuffers
-		BeginTextureMode(frontend_state.board_target);
-		ClearBackground(palette_color(RENDER_PALETTE_BG));
-		draw_framebuffer_to_target(view, RENDER_TARGET_BOARD);
-		EndTextureMode();
+		upload_dirty_rects(view, RENDER_TARGET_BOARD);
+		upload_dirty_rects(view, RENDER_TARGET_HUD);
 
-		BeginTextureMode(frontend_state.hud_target);
-		ClearBackground(palette_color(RENDER_PALETTE_BG));
-		draw_framebuffer_to_target(view, RENDER_TARGET_HUD);
-		EndTextureMode();
-
-		// Draw textures to screen
 		const IntRect board_rect = frontend_state.display_settings.board_rect;
-		const Rectangle board_src = {0.0f, 0.0f, (float)frontend_state.board_width,
-									 (float)-frontend_state.board_height};
-		const Rectangle board_dst = {(float)board_rect.x, (float)board_rect.y, (float)board_rect.w,
-									 (float)board_rect.h};
-		DrawTexturePro(frontend_state.board_target.texture, board_src, board_dst, (Vector2){0}, 0.0f, WHITE);
+		const Rectangle board_src = {0.0f, 0.0f, (float)frontend_state.board_width, (float)frontend_state.board_height};
+		const Rectangle board_dst = {(float)board_rect.x, (float)board_rect.y, (float)board_rect.w, (float)board_rect.h};
+		DrawTexturePro(frontend_state.board_texture, board_src, board_dst, (Vector2){0}, 0.0f, WHITE);
 
 		const IntRect hud_rect = frontend_state.display_settings.hud_rect;
-		const Rectangle hud_src = {0.0f, 0.0f, (float)frontend_state.hud_width, (float)-frontend_state.hud_height};
+		const Rectangle hud_src = {0.0f, 0.0f, (float)frontend_state.hud_width, (float)frontend_state.hud_height};
 		const Rectangle hud_dst = {(float)hud_rect.x, (float)hud_rect.y, (float)hud_rect.w, (float)hud_rect.h};
-		DrawTexturePro(frontend_state.hud_target.texture, hud_src, hud_dst, (Vector2){0}, 0.0f, WHITE);
+		DrawTexturePro(frontend_state.hud_texture, hud_src, hud_dst, (Vector2){0}, 0.0f, WHITE);
 	}
-
-	// if (view->status == RENDER_STATUS_PLACEHOLDER) {
-	// 	draw_placeholder_hud(app);
-	// } else {
-	// 	draw_play_hud(app, view);
-	// }
 }
 
 void raylib_frontend_shutdown(void) {
@@ -249,7 +239,7 @@ void raylib_frontend_shutdown(void) {
 		return;
 	}
 
-	UnloadRenderTexture(frontend_state.board_target);
-	UnloadRenderTexture(frontend_state.hud_target);
+	UnloadTexture(frontend_state.board_texture);
+	UnloadTexture(frontend_state.hud_texture);
 	frontend_state = (FrontendState){0};
 }

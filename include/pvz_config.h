@@ -24,13 +24,6 @@
 #define PVZ_MAX_INPUT_COMMANDS 32
 
 typedef struct {
-	int x;
-	int y;
-	int w;
-	int h;
-} IntRect;
-
-typedef struct {
 	// Board layout
 	int rows;
 	int cols;
@@ -85,7 +78,6 @@ typedef struct {
 
 GameConfig pvz_make_default_config(void);
 void pvz_clamp_config(GameConfig *config);
-bool pvz_rect_contains(IntRect rect, int x, int y);
 
 int pvz_plant_cost(const GameConfig *config, PlantType type);
 int pvz_plant_seed_cooldown(const GameConfig *config, PlantType type);
