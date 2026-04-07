@@ -4,6 +4,7 @@
 
 #include "app.h"
 #include "presentation.h"
+#include "pvz_config.h"
 #include "raylib.h"
 #include "raylib_frontend.h"
 
@@ -48,7 +49,7 @@ int main(int argc, char **argv) {
 	DisplaySettings display_settings = set_display_settings(&config, 88, 12, 480, 320);
 	SetConfigFlags(FLAG_VSYNC_HINT | FLAG_WINDOW_HIGHDPI);
 	InitWindow(display_settings.window_width, display_settings.window_height, "pvz-raylib mockup");
-	SetTargetFPS(60);
+	SetTargetFPS(PVZ_DEFAULT_TARGET_FPS);
 
 	while (!WindowShouldClose() && !app.quit_requested) {
 		InputFrame input;
