@@ -47,6 +47,8 @@ static Color palette_color(RenderPalette palette) {
 	switch (palette) {
 	case RENDER_PALETTE_BG:
 		return (Color){26, 43, 26, 255};
+	case RENDER_PALETTE_BLACK:
+		return (Color){0, 0, 0, 255};
 	case RENDER_PALETTE_PANEL:
 		return (Color){233, 223, 187, 255};
 	case RENDER_PALETTE_TILE_LIGHT:
@@ -128,7 +130,7 @@ static void ensure_render_targets(const AppContext *app) {
 		frontend_state = (FrontendState){0};
 	}
 
-	frontend_state.board_texture = create_texture(board_width, board_height, palette_color(RENDER_PALETTE_BG));
+	frontend_state.board_texture = create_texture(board_width, board_height, palette_color(RENDER_PALETTE_BLACK));
 	frontend_state.hud_texture = create_texture(hud_width, hud_height, palette_color(RENDER_PALETTE_BG));
 	frontend_state.board_width = board_width;
 	frontend_state.board_height = board_height;
